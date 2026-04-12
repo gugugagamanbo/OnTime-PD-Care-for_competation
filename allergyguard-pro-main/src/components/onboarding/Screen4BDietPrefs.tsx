@@ -8,15 +8,15 @@ interface Props {
   onBack: () => void;
 }
 
-const diets = [
-  { id: 'vegan', emoji: '🌱', zh: '纯素', en: 'Vegan' },
-  { id: 'vegetarian', emoji: '🥗', zh: '素食', en: 'Vegetarian' },
-  { id: 'halal', emoji: '☪️', zh: '清真', en: 'Halal' },
-  { id: 'kosher', emoji: '✡️', zh: '犹太洁食', en: 'Kosher' },
-  { id: 'gluten-free', emoji: '🚫', zh: '无麸质', en: 'Gluten-Free' },
-  { id: 'fodmap', emoji: '📉', zh: 'Low FODMAP', en: 'Low FODMAP' },
-  { id: 'keto', emoji: '🥩', zh: '生酮', en: 'Keto' },
-  { id: 'diabetic', emoji: '🩺', zh: '糖尿病饮食', en: 'Diabetic' },
+const reportFocuses = [
+  { id: 'medication-adherence', emoji: '💊', zh: '用药执行', en: 'Medication adherence' },
+  { id: 'symptom-trend', emoji: '📈', zh: '症状趋势', en: 'Symptom trends' },
+  { id: 'watch-data', emoji: '⌚', zh: 'Apple Watch 数据', en: 'Apple Watch data' },
+  { id: 'caregiver-status', emoji: '🤝', zh: '照护者状态', en: 'Caregiver status' },
+  { id: 'side-effects', emoji: '⚠️', zh: '副作用', en: 'Side effects' },
+  { id: 'sleep-exercise', emoji: '🏃', zh: '睡眠与运动', en: 'Sleep and exercise' },
+  { id: 'care-team', emoji: '👥', zh: '照护团队', en: 'Care team' },
+  { id: 'visit-questions', emoji: '📝', zh: '就诊问题', en: 'Visit questions' },
 ];
 
 const Screen4BDietPrefs: React.FC<Props> = ({ onNext, onBack }) => {
@@ -39,7 +39,7 @@ const Screen4BDietPrefs: React.FC<Props> = ({ onNext, onBack }) => {
       </div>
 
       <div className="mt-6 grid grid-cols-2 gap-3">
-        {diets.map(d => {
+        {reportFocuses.map(d => {
           const isSelected = selected.includes(d.id);
           return (
             <button

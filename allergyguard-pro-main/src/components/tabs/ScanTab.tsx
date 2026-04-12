@@ -1,53 +1,59 @@
 import { useState } from 'react';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, FileText, Camera, PenLine, History, ShieldAlert, Check, Plus, Trash2 } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 
-type AllergenKey =
-  | 'allergy.peanut' | 'allergy.dairy' | 'allergy.gluten' | 'allergy.egg'
-  | 'allergy.treenut' | 'allergy.soy' | 'allergy.shellfish' | 'allergy.fish'
-  | 'allergy.sesame' | 'allergy.wheat' | 'allergy.celery' | 'allergy.mustard'
-  | 'allergy.lupin' | 'allergy.molluscs' | 'allergy.sulphites' | 'allergy.fruit'
-  | 'allergy.spice' | 'allergy.cocoa' | 'allergy.corn' | 'allergy.mushroom'
-  | 'allergy.garlic' | 'allergy.tomato' | 'allergy.kiwi' | 'allergy.beef'
-  | 'allergy.pork' | 'allergy.alcohol' | 'allergy.caffeine' | 'allergy.avocado'
-  | 'allergy.peach' | 'allergy.strawberry' | 'allergy.onion' | 'allergy.yeast'
-  | 'allergy.latex' | 'allergy.mango' | 'allergy.apple';
-
-// Mock family members — in a real app these would come from shared state
-interface FamilyMember {
-  id: number;
+interface DetectedMed {
   name: string;
-  allergies: AllergenKey[];
+  strength: string;
+  dose: string;
+  times: string[];
+  instruction: string;
+  confidence: '高' | '中';
+  confirmed: boolean;
 }
 
-const mockFamilyMembers: FamilyMember[] = [
-  { id: 1, name: 'Alex Jr.', allergies: ['allergy.egg', 'allergy.dairy'] },
+const mockDetectedMeds: DetectedMed[] = [
+  {
+    name: '左旋多巴/卡比多巴',
+    strength: '25/100mg',
+    dose: '1片',
+    times: ['08:00', '12:00', '16:00', '20:00'],
+    instruction: '餐前30分钟',
+    confidence: '高',
+    confirmed: false,
+  },
+  {
+    name: '多巴胺受体激动剂',
+    strength: '0.5mg',
+    dose: '1片',
+    times: ['睡前'],
+    instruction: '遵医嘱',
+    confidence: '中',
+    confirmed: false,
+  },
 ];
 
-const results = [
-  { dot: 'bg-green-500', name: 'scan.oatmilk' as const, detail: 'scan.oatmilk.detail' as const, badge: 'scan.safe' as const, badgeColor: 'text-green-600' },
-  { dot: 'bg-yellow-400', name: 'scan.granola' as const, detail: 'scan.granola.detail' as const, badge: 'scan.caution' as const, badgeColor: 'text-yellow-600' },
-  { dot: 'bg-red-500', name: 'scan.bread' as const, detail: 'scan.bread.detail' as const, badge: 'scan.danger' as const, badgeColor: 'text-red-600' },
-];
-
-const mockCurrentScan = {
-  dot: 'bg-green-500',
-  name: 'scan.oatmilk' as const,
-  detail: 'scan.oatmilk.detail' as const,
-  description: 'scan.oatmilk.description' as const,
-  calories: 'scan.oatmilk.calories' as const,
-  brand: 'scan.oatmilk.brand' as const,
-  badge: 'scan.safe' as const,
-  badgeColor: 'text-green-600',
-  badgeBg: 'bg-green-50 border-green-200',
-  // Allergens present in this product
-  containsAllergens: [] as AllergenKey[],
-  ingredients: ['scan.ingredient.oat' as const, 'scan.ingredient.water' as const, 'scan.ingredient.salt' as const],
+const emptyManualMed: DetectedMed = {
+  name: '',
+  strength: '',
+  dose: '',
+  times: [''],
+  instruction: '',
+  confidence: '高',
+  confirmed: false,
 };
 
 const ScanTab = () => {
   const { t } = useLanguage();
-  const [view, setView] = useState<'camera' | 'scanning' | 'analyzing' | 'results'>('camera');
+  const [view, setView] = useState<'home' | 'camera' | 'scanning' | 'analyzing' | 'results' | 'manual'>('home');
+  const [detectedMeds, setDetectedMeds] = useState<DetectedMed[]>(mockDetectedMeds);
+  const [manualMed, setManualMed] = useState<DetectedMed>(emptyManualMed);
+  const [toast, setToast] = useState('');
+
+  const showToast = (msg: string) => {
+    setToast(msg);
+    setTimeout(() => setToast(''), 2500);
+  };
 
   const handleCapture = () => {
     setView('scanning');
@@ -55,105 +61,299 @@ const ScanTab = () => {
     setTimeout(() => setView('results'), 2200);
   };
 
-  // Compute family member risk for current scan
-  const familyRisk = mockFamilyMembers.map(member => {
-    const risky = member.allergies.filter(a => mockCurrentScan.containsAllergens.includes(a));
-    return { member, risky, safe: risky.length === 0 };
-  });
+  const handleConfirmAll = () => {
+    setDetectedMeds(prev => prev.map(m => ({ ...m, confirmed: true })));
+    showToast(t('scan.generated'));
+  };
 
-  const hasFamilyMembers = mockFamilyMembers.length > 0;
+  const handleSendPharmacist = () => {
+    showToast(t('scan.sentToPharmacist'));
+  };
 
+  const updateDetectedMed = (index: number, field: keyof DetectedMed, value: string | string[]) => {
+    setDetectedMeds(prev => prev.map((med, i) => {
+      if (i !== index) return med;
+      return { ...med, [field]: value, confirmed: false };
+    }));
+  };
+
+  const removeDetectedMed = (index: number) => {
+    setDetectedMeds(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const updateManualMed = (field: keyof DetectedMed, value: string | string[]) => {
+    setManualMed(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleAddManualMed = () => {
+    if (!manualMed.name.trim() || !manualMed.dose.trim() || !manualMed.times.join('').trim()) {
+      showToast('请至少填写药名、剂量和服药时间');
+      return;
+    }
+    setDetectedMeds(prev => [
+      ...prev,
+      {
+        ...manualMed,
+        times: manualMed.times[0].split(/[,，、/ ]+/).filter(Boolean),
+        instruction: manualMed.instruction || '遵医嘱',
+        confidence: '高',
+        confirmed: false,
+      },
+    ]);
+    setManualMed(emptyManualMed);
+    setView('results');
+    showToast('已添加到待确认用药计划');
+  };
+
+  // Home view — entry buttons
+  if (view === 'home') {
+    return (
+      <div className="px-5 pt-6 pb-28 space-y-5">
+        {toast && (
+          <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 bg-gray-900 text-white text-sm font-medium px-4 py-2 rounded-full shadow-lg">
+            {toast}
+          </div>
+        )}
+
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">{t('scan.title')}</h1>
+          <p className="text-sm text-gray-500 mt-1">{t('scan.subtitle')}</p>
+        </div>
+
+        {/* Entry buttons */}
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            onClick={() => setView('camera')}
+            className="bg-white border border-gray-200 rounded-2xl p-5 flex flex-col items-center gap-3 hover:border-gray-400 transition-colors"
+          >
+            <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center">
+              <FileText size={22} className="text-gray-700" />
+            </div>
+            <span className="text-sm font-semibold text-gray-900">{t('scan.prescription')}</span>
+          </button>
+          <button
+            onClick={() => setView('camera')}
+            className="bg-white border border-gray-200 rounded-2xl p-5 flex flex-col items-center gap-3 hover:border-gray-400 transition-colors"
+          >
+            <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center">
+              <Camera size={22} className="text-gray-700" />
+            </div>
+            <span className="text-sm font-semibold text-gray-900">{t('scan.medicineBox')}</span>
+          </button>
+          <button
+            onClick={() => setView('manual')}
+            className="bg-white border border-gray-200 rounded-2xl p-5 flex flex-col items-center gap-3 hover:border-gray-400 transition-colors"
+          >
+            <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center">
+              <PenLine size={22} className="text-gray-700" />
+            </div>
+            <span className="text-sm font-semibold text-gray-900">{t('scan.manual')}</span>
+          </button>
+          <button
+            onClick={() => setView('results')}
+            className="bg-white border border-gray-200 rounded-2xl p-5 flex flex-col items-center gap-3 hover:border-gray-400 transition-colors"
+          >
+            <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center">
+              <History size={22} className="text-gray-700" />
+            </div>
+            <span className="text-sm font-semibold text-gray-900">{t('scan.importHistory')}</span>
+          </button>
+        </div>
+
+        {/* Safety note */}
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex gap-2">
+          <ShieldAlert size={16} className="text-amber-600 flex-shrink-0 mt-0.5" />
+          <p className="text-xs text-amber-800 leading-relaxed">
+            {t('scan.safetyNote')}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (view === 'manual') {
+    return (
+      <div className="px-5 pt-6 pb-28 space-y-5">
+        {toast && (
+          <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 bg-gray-900 text-white text-sm font-medium px-4 py-2 rounded-full shadow-lg">
+            {toast}
+          </div>
+        )}
+
+        <div className="flex items-center gap-3">
+          <button onClick={() => setView('home')} className="p-1">
+            <ArrowLeft size={22} className="text-gray-900" />
+          </button>
+          <div>
+            <h1 className="text-xl font-bold text-gray-900">{t('scan.manual')}</h1>
+            <p className="text-xs text-gray-500 mt-0.5">手动录入后仍需在待确认计划中核对。</p>
+          </div>
+        </div>
+
+        <div className="bg-white border border-gray-200 rounded-2xl p-4 space-y-3">
+          {[
+            ['name', '药物名称', manualMed.name, '例如：左旋多巴/卡比多巴'],
+            ['strength', '规格', manualMed.strength, '例如：25/100mg'],
+            ['dose', '每次剂量', manualMed.dose, '例如：1片'],
+            ['times', '服药时间', manualMed.times[0], '例如：08:00，12:00，16:00'],
+            ['instruction', '服药说明', manualMed.instruction, '例如：餐前30分钟'],
+          ].map(([field, label, value, placeholder]) => (
+            <label key={field} className="block">
+              <span className="text-xs font-medium text-gray-500">{label}</span>
+              <input
+                value={value}
+                placeholder={placeholder}
+                onChange={event => {
+                  if (field === 'times') updateManualMed('times', [event.target.value]);
+                  else updateManualMed(field as keyof DetectedMed, event.target.value);
+                }}
+                className="mt-1 w-full px-3 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-gray-400"
+              />
+            </label>
+          ))}
+        </div>
+
+        <button
+          onClick={handleAddManualMed}
+          className="w-full py-2.5 bg-gray-900 text-white rounded-xl text-sm font-semibold flex items-center justify-center gap-2"
+        >
+          <Plus size={16} />
+          添加到待确认用药计划
+        </button>
+
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex gap-2">
+          <ShieldAlert size={16} className="text-amber-600 flex-shrink-0 mt-0.5" />
+          <p className="text-xs text-amber-800 leading-relaxed">
+            手动添加的信息也需要核对处方原文，任何药物调整请遵医嘱。
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Results view
   if (view === 'results') {
     return (
       <div className="px-5 pt-6 pb-28 space-y-5">
+        {toast && (
+          <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 bg-gray-900 text-white text-sm font-medium px-4 py-2 rounded-full shadow-lg">
+            {toast}
+          </div>
+        )}
+
         <div className="flex items-center gap-3">
-          <button onClick={() => setView('camera')} className="p-1">
+          <button onClick={() => setView('home')} className="p-1">
             <ArrowLeft size={22} className="text-gray-900" />
           </button>
-          <h1 className="text-2xl font-bold text-gray-900">{t('scan.results.title')}</h1>
+          <h1 className="text-xl font-bold text-gray-900">{t('scan.resultTitle')}</h1>
         </div>
 
-        {/* Current scan card — detailed */}
-        <div>
-          <h2 className="text-base font-semibold text-gray-900 mb-3">{t('scan.results.current')}</h2>
-          <div className="bg-white border border-gray-200 rounded-2xl p-4 space-y-3">
-            {/* Header row */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className={`w-3 h-3 rounded-full ${mockCurrentScan.dot} flex-shrink-0`} />
-                <div>
-                  <p className="font-semibold text-gray-900 text-sm">{t(mockCurrentScan.name)}</p>
-                  <p className="text-xs text-gray-500 mt-0.5">{t(mockCurrentScan.brand)}</p>
+        {/* Detected medications */}
+        <div className="space-y-3">
+          {detectedMeds.map((med, i) => {
+            const isMedium = med.confidence === '中';
+            return (
+              <div key={i} className={`bg-white border rounded-2xl p-4 space-y-3 ${med.confirmed ? 'border-green-200' : 'border-gray-200'}`}>
+                <div className="flex items-center justify-between">
+                  <p className="text-base font-bold text-gray-900">药物 {i + 1}</p>
+                  {med.confirmed ? (
+                    <span className="flex items-center gap-1 text-xs font-medium text-green-600">
+                      <Check size={14} /> 已确认
+                    </span>
+                  ) : (
+                    <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 border border-gray-200">
+                      {t('scan.toConfirm')}
+                    </span>
+                  )}
                 </div>
-              </div>
-              <span className={`text-xs font-bold px-2.5 py-1 rounded-full border ${mockCurrentScan.badgeBg} ${mockCurrentScan.badgeColor}`}>
-                {t(mockCurrentScan.badge)}
-              </span>
-            </div>
 
-            {/* Description */}
-            <div className="border-t border-gray-100 pt-3">
-              <p className="text-xs font-semibold text-gray-500 mb-1.5">{t('scan.results.description')}</p>
-              <p className="text-sm text-gray-700 leading-relaxed">{t(mockCurrentScan.description)}</p>
-              <p className="text-xs text-gray-400 mt-1.5">{t(mockCurrentScan.calories)}</p>
-            </div>
-
-            {/* Ingredients */}
-            <div className="border-t border-gray-100 pt-3">
-              <p className="text-xs font-semibold text-gray-500 mb-2">{t('scan.results.ingredients')}</p>
-              <div className="flex flex-wrap gap-2">
-                {mockCurrentScan.ingredients.map((ing, i) => (
-                  <span key={i} className="text-xs bg-gray-100 text-gray-700 px-2.5 py-1 rounded-full">
-                    {t(ing)}
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            {/* Family allergy section — only shown if family members exist */}
-            {hasFamilyMembers && (
-              <div className="border-t border-gray-100 pt-3">
-                <p className="text-xs font-semibold text-gray-500 mb-2">{t('scan.family.title')}</p>
-                <div className="flex flex-wrap gap-2">
-                  {familyRisk.map(({ member, safe, risky }) => (
-                    <div
-                      key={member.id}
-                      className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-medium ${
-                        safe
-                          ? 'bg-green-50 border-green-200 text-green-700'
-                          : 'bg-red-50 border-red-200 text-red-700'
-                      }`}
-                    >
-                      <span className={`w-2 h-2 rounded-full flex-shrink-0 ${safe ? 'bg-green-500' : 'bg-red-500'}`} />
-                      <span>{member.name}</span>
-                      <span className="opacity-70">
-                        {safe ? t('scan.family.safe') : t('scan.family.risk')}
-                      </span>
-                    </div>
+                <div className="space-y-3">
+                  {[
+                    ['name', '药物名称', med.name],
+                    ['strength', t('scan.strength'), med.strength],
+                    ['dose', t('scan.dosage'), med.dose],
+                    ['times', t('scan.times'), med.times.join('，')],
+                    ['instruction', t('scan.instruction'), med.instruction],
+                  ].map(([field, label, value]) => (
+                    <label key={field} className="block">
+                      <span className="text-xs text-gray-500">{label}</span>
+                      <input
+                        value={value}
+                        onChange={event => {
+                          if (field === 'times') {
+                            updateDetectedMed(i, 'times', event.target.value.split(/[,，、/ ]+/).filter(Boolean));
+                          } else {
+                            updateDetectedMed(i, field as keyof DetectedMed, event.target.value);
+                          }
+                        }}
+                        className="mt-1 w-full px-3 py-2 rounded-xl border border-gray-200 bg-white text-sm font-medium text-gray-900 focus:outline-none focus:border-gray-400"
+                      />
+                    </label>
                   ))}
                 </div>
+
+                <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+                  <span className="text-xs text-gray-500">{t('scan.confidence')}</span>
+                  <select
+                    value={med.confidence}
+                    onChange={event => updateDetectedMed(i, 'confidence', event.target.value)}
+                    className={`text-xs font-medium px-2 py-1 rounded-lg border ${
+                      isMedium ? 'bg-yellow-50 text-yellow-700 border-yellow-200' : 'bg-green-50 text-green-700 border-green-200'
+                    }`}
+                  >
+                    <option value="高">{t('scan.confidenceHigh')}</option>
+                    <option value="中">{t('scan.confidenceMedium')}</option>
+                  </select>
+                </div>
+
+                {isMedium && (
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-2">
+                    <p className="text-xs text-amber-800">{t('scan.uncertainNote')}</p>
+                  </div>
+                )}
+
+                <button
+                  onClick={() => removeDetectedMed(i)}
+                  className="w-full py-2 border border-gray-200 rounded-xl text-xs font-medium text-gray-500 flex items-center justify-center gap-1.5"
+                >
+                  <Trash2 size={13} />
+                  删除这条药物
+                </button>
               </div>
-            )}
+            );
+          })}
+        </div>
+
+        {/* Action buttons */}
+        <div className="space-y-2">
+          <button
+            onClick={handleConfirmAll}
+            className="w-full py-2.5 bg-gray-900 text-white rounded-xl text-sm font-semibold"
+          >
+            {t('scan.confirmGenerate')}
+          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => { setView('camera'); setDetectedMeds(mockDetectedMeds); }}
+              className="flex-1 py-2.5 border border-gray-300 rounded-xl text-sm font-medium text-gray-700"
+            >
+              {t('scan.rescan')}
+            </button>
+            <button
+              onClick={handleSendPharmacist}
+              className="flex-1 py-2.5 border border-gray-300 rounded-xl text-sm font-medium text-gray-700"
+            >
+              {t('scan.sendPharmacist')}
+            </button>
           </div>
         </div>
 
-        {/* Recent scans */}
-        <div>
-          <h2 className="text-base font-semibold text-gray-900 mb-3">{t('scan.recent')}</h2>
-          <div className="space-y-2">
-            {results.map((r, i) => (
-              <div key={i} className="flex items-center bg-white border border-gray-200 rounded-xl px-4 py-3">
-                <div className={`w-2.5 h-2.5 rounded-full ${r.dot} mr-3 flex-shrink-0`} />
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm text-gray-900">{t(r.name)}</p>
-                  <p className="text-xs text-gray-500">{t(r.detail)}</p>
-                </div>
-                <span className={`text-xs font-semibold ml-2 flex-shrink-0 ${r.badgeColor}`}>
-                  {t(r.badge)}
-                </span>
-              </div>
-            ))}
-          </div>
+        {/* Safety note */}
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex gap-2">
+          <ShieldAlert size={16} className="text-amber-600 flex-shrink-0 mt-0.5" />
+          <p className="text-xs text-amber-800 leading-relaxed">
+            {t('scan.safetyNote')}
+          </p>
         </div>
       </div>
     );
@@ -165,7 +365,6 @@ const ScanTab = () => {
       <div className="fixed inset-0 z-40 flex flex-col items-center justify-center bg-black gap-4">
         <div className="w-10 h-10 border-2 border-gray-600 border-t-white rounded-full animate-spin" />
         <p className="text-white font-semibold text-base">{t('scan.analyzing')}</p>
-        <p className="text-white/50 text-sm">{t('scan.analyzing.sub')}</p>
       </div>
     );
   }
@@ -184,34 +383,31 @@ const ScanTab = () => {
         }
       `}</style>
       <div className="fixed inset-0 z-40 flex flex-col bg-black">
+        {/* Back button */}
+        <div className="absolute top-6 left-4 z-50">
+          <button onClick={() => setView('home')} className="p-2">
+            <ArrowLeft size={22} className="text-white" />
+          </button>
+        </div>
+
         {/* Viewfinder */}
         <div className="flex-1 relative flex items-center justify-center">
-          {/* Dimmed overlay */}
           <div className="absolute inset-0 bg-black/60" />
-
-          {/* Scan box */}
           <div
             className="relative z-10 w-[calc(100%-48px)] max-w-[342px] aspect-[3/2] bg-transparent overflow-hidden"
             style={{ '--box-height': '200px' } as React.CSSProperties}
           >
-            {/* Corner brackets */}
             <span className="absolute top-0 left-0 w-6 h-6 border-t-2 border-l-2 border-white rounded-tl-lg" />
             <span className="absolute top-0 right-0 w-6 h-6 border-t-2 border-r-2 border-white rounded-tr-lg" />
             <span className="absolute bottom-0 left-0 w-6 h-6 border-b-2 border-l-2 border-white rounded-bl-lg" />
             <span className="absolute bottom-0 right-0 w-6 h-6 border-b-2 border-r-2 border-white rounded-br-lg" />
-
-            {/* Animated scan line — only during 'scanning' state */}
             {view === 'scanning' && (
               <div className="scan-line absolute left-2 right-2 top-0 h-0.5 bg-white/70 shadow-[0_0_8px_2px_rgba(255,255,255,0.4)]" />
             )}
           </div>
-
-          {/* Hint text */}
           <p className="absolute bottom-[calc(50%-70px)] left-0 right-0 text-center text-white/70 text-xs mt-4 translate-y-[calc(100%+100px)]">
-            {view === 'scanning' ? (t('scan.analyzing') ) : '将条形码置于框内'}
+            {view === 'scanning' ? t('scan.analyzing') : t('scan.hint')}
           </p>
-
-          {/* Flash overlay on capture */}
           {view === 'scanning' && (
             <div className="absolute inset-0 bg-white/10 z-20" />
           )}

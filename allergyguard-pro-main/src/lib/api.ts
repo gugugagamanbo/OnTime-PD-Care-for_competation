@@ -1,17 +1,17 @@
 /**
- * API integration interface for AllergyGuard onboarding.
+ * API integration interface for the Parkinson care onboarding stub.
  * Replace the base URL and implement actual HTTP calls when connecting to your backend.
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://api.allergyguard.example.com';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://api.parkinson-care.example.com';
 
 export interface OnboardingProfile {
   phoneNumber: string;
   countryCode: string;
-  profileFor: 'self' | 'child' | 'family' | 'caregiver';
-  restrictionType: 'allergy' | 'intolerance' | 'preference' | 'unsure';
-  allergens: string[];
-  dietPreferences: string[];
+  profileFor: 'self' | 'family' | 'caregiver';
+  priorityArea: 'medication' | 'symptom' | 'coordination' | 'unsure';
+  symptomFocuses: string[];
+  reportFocuses: string[];
   severityLevels: Record<string, 'mild' | 'moderate' | 'severe'>;
   language: 'zh' | 'en';
 }

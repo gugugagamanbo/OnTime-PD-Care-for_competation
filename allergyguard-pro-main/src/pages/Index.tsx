@@ -1,16 +1,15 @@
 import { useState } from 'react';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import BottomNav from '@/components/BottomNav';
-import AllergyTab from '@/components/tabs/AllergyTab';
-import CommunityTab from '@/components/tabs/CommunityTab';
+import MedicationTab from '@/components/tabs/MedicationTab';
+import CareCircleTab from '@/components/tabs/CareCircleTab';
 import ScanTab from '@/components/tabs/ScanTab';
 import ProfileTab from '@/components/tabs/ProfileTab';
-import OnboardingFlow from '@/components/onboarding/OnboardingFlow';
 
-const tabs = [AllergyTab, CommunityTab, ScanTab, ProfileTab];
+const tabs = [MedicationTab, CareCircleTab, ScanTab, ProfileTab];
 
 const AppShell = () => {
-  const [activeTab, setActiveTab] = useState(2);
+  const [activeTab, setActiveTab] = useState(0);
   const ActiveComponent = tabs[activeTab];
 
   return (
@@ -26,12 +25,6 @@ const AppShell = () => {
 };
 
 const Index = () => {
-  const [onboardingDone, setOnboardingDone] = useState(false);
-
-  if (!onboardingDone) {
-    return <OnboardingFlow onComplete={() => setOnboardingDone(true)} />;
-  }
-
   return (
     <LanguageProvider>
       <AppShell />

@@ -14,9 +14,9 @@ const Screen3RestrictionType: React.FC<Props> = ({ onNext, onBack }) => {
   const [selected, setSelected] = useState<string | null>(null);
 
   const options = [
-    { id: 'allergy', emoji: '🏥', title: t('restrictionAllergy'), sub: t('restrictionAllergySub') },
-    { id: 'intolerance', emoji: '😣', title: t('restrictionIntolerance'), sub: t('restrictionIntoleranceSub') },
-    { id: 'preference', emoji: '🥗', title: t('restrictionPreference'), sub: t('restrictionPreferenceSub') },
+    { id: 'medication', emoji: '💊', title: t('restrictionAllergy'), sub: t('restrictionAllergySub') },
+    { id: 'symptom', emoji: '📈', title: t('restrictionIntolerance'), sub: t('restrictionIntoleranceSub') },
+    { id: 'coordination', emoji: '🤝', title: t('restrictionPreference'), sub: t('restrictionPreferenceSub') },
     { id: 'unsure', emoji: '🤷', title: t('restrictionUnsure'), sub: t('restrictionUnsureSub') },
   ];
 

@@ -3,34 +3,34 @@ import { useI18n } from '@/lib/i18n';
 import OnboardingShell from './OnboardingShell';
 import CtaButton from './CtaButton';
 
-const allergenMap: Record<string, { emoji: string; zh: string; en: string }> = {
-  peanut: { emoji: '🥜', zh: '花生', en: 'Peanut' },
-  treenut: { emoji: '🌰', zh: '坚果', en: 'Tree Nut' },
-  milk: { emoji: '🥛', zh: '牛奶', en: 'Milk' },
-  egg: { emoji: '🥚', zh: '鸡蛋', en: 'Egg' },
-  gluten: { emoji: '🌾', zh: '麸质', en: 'Gluten' },
-  soy: { emoji: '🫘', zh: '大豆', en: 'Soy' },
-  fish: { emoji: '🐟', zh: '鱼类', en: 'Fish' },
-  shellfish: { emoji: '🦐', zh: '贝类', en: 'Shellfish' },
-  sesame: { emoji: '🌿', zh: '芝麻', en: 'Sesame' },
-  corn: { emoji: '🌽', zh: '玉米', en: 'Corn' },
-  stonefruit: { emoji: '🍑', zh: '核果类', en: 'Stone Fruit' },
+const symptomMap: Record<string, { emoji: string; zh: string; en: string }> = {
+  tremor: { emoji: '✋', zh: '震颤', en: 'Tremor' },
+  rigidity: { emoji: '🦾', zh: '僵硬', en: 'Rigidity' },
+  dyskinesia: { emoji: '〰️', zh: '异动症', en: 'Dyskinesia' },
+  off: { emoji: '⏱️', zh: '药效减退', en: 'Wearing-off' },
+  gait: { emoji: '🚶', zh: '步态不稳', en: 'Gait changes' },
+  sleep: { emoji: '🌙', zh: '睡眠问题', en: 'Sleep issues' },
+  constipation: { emoji: '🩺', zh: '便秘', en: 'Constipation' },
+  mood: { emoji: '🧠', zh: '情绪波动', en: 'Mood changes' },
+  falls: { emoji: '⚠️', zh: '跌倒风险', en: 'Fall risk' },
+  fatigue: { emoji: '🔋', zh: '疲劳', en: 'Fatigue' },
+  freezing: { emoji: '🧊', zh: '冻结步态', en: 'Freezing of gait' },
 };
 
 type Severity = 'mild' | 'moderate' | 'severe';
 
 interface Props {
-  allergens: string[];
+  symptoms: string[];
   onNext: (severities: Record<string, Severity>) => void;
   onBack: () => void;
 }
 
-const Screen5Severity: React.FC<Props> = ({ allergens, onNext, onBack }) => {
+const Screen5Severity: React.FC<Props> = ({ symptoms, onNext, onBack }) => {
   const { t, lang } = useI18n();
-  const displayAllergens = allergens.filter(a => a !== 'custom' && allergenMap[a]);
+  const displaySymptoms = symptoms.filter(a => a !== 'custom' && symptomMap[a]);
 
   const [severities, setSeverities] = useState<Record<string, Severity>>(
-    Object.fromEntries(displayAllergens.map(a => [a, 'moderate']))
+    Object.fromEntries(displaySymptoms.map(a => [a, 'moderate']))
   );
 
   const setSeverity = (id: string, level: Severity) => {
@@ -38,7 +38,7 @@ const Screen5Severity: React.FC<Props> = ({ allergens, onNext, onBack }) => {
   };
 
   const setAllSevere = () => {
-    setSeverities(Object.fromEntries(displayAllergens.map(a => [a, 'severe'])));
+    setSeverities(Object.fromEntries(displaySymptoms.map(a => [a, 'severe'])));
   };
 
   const levels: { key: Severity; label: string; desc: string }[] = [
@@ -70,8 +70,8 @@ const Screen5Severity: React.FC<Props> = ({ allergens, onNext, onBack }) => {
       </div>
 
       <div className="mt-4 space-y-3 overflow-y-auto flex-1 -mx-1 px-1">
-        {displayAllergens.map(id => {
-          const a = allergenMap[id];
+        {displaySymptoms.map(id => {
+          const a = symptomMap[id];
           if (!a) return null;
           return (
             <div key={id} className="rounded-2xl p-4" style={{ backgroundColor: 'white' }}>

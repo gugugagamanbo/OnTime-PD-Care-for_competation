@@ -4,25 +4,25 @@ import OnboardingShell from './OnboardingShell';
 import CtaButton from './CtaButton';
 
 interface Props {
-  onNext: (allergens: string[]) => void;
+  onNext: (symptoms: string[]) => void;
   onBack: () => void;
 }
 
-const allergens = [
-  { id: 'peanut', emoji: '🥜', zh: '花生', en: 'Peanut' },
-  { id: 'treenut', emoji: '🌰', zh: '坚果', en: 'Tree Nut' },
-  { id: 'milk', emoji: '🥛', zh: '牛奶', en: 'Milk' },
-  { id: 'egg', emoji: '🥚', zh: '鸡蛋', en: 'Egg' },
-  { id: 'gluten', emoji: '🌾', zh: '麸质', en: 'Gluten' },
-  { id: 'soy', emoji: '🫘', zh: '大豆', en: 'Soy' },
-  { id: 'fish', emoji: '🐟', zh: '鱼类', en: 'Fish' },
-  { id: 'shellfish', emoji: '🦐', zh: '贝类', en: 'Shellfish' },
-  { id: 'sesame', emoji: '🌿', zh: '芝麻', en: 'Sesame' },
+const symptomOptions = [
+  { id: 'tremor', emoji: '✋', zh: '震颤', en: 'Tremor' },
+  { id: 'rigidity', emoji: '🦾', zh: '僵硬', en: 'Rigidity' },
+  { id: 'dyskinesia', emoji: '〰️', zh: '异动症', en: 'Dyskinesia' },
+  { id: 'off', emoji: '⏱️', zh: '药效减退', en: 'Wearing-off' },
+  { id: 'gait', emoji: '🚶', zh: '步态不稳', en: 'Gait changes' },
+  { id: 'sleep', emoji: '🌙', zh: '睡眠问题', en: 'Sleep issues' },
+  { id: 'constipation', emoji: '🩺', zh: '便秘', en: 'Constipation' },
+  { id: 'mood', emoji: '🧠', zh: '情绪波动', en: 'Mood changes' },
+  { id: 'falls', emoji: '⚠️', zh: '跌倒风险', en: 'Fall risk' },
 ];
 
-const extraAllergens = [
-  { id: 'corn', emoji: '🌽', zh: '玉米', en: 'Corn' },
-  { id: 'stonefruit', emoji: '🍑', zh: '核果类', en: 'Stone Fruit' },
+const extraSymptoms = [
+  { id: 'fatigue', emoji: '🔋', zh: '疲劳', en: 'Fatigue' },
+  { id: 'freezing', emoji: '🧊', zh: '冻结步态', en: 'Freezing of gait' },
   { id: 'custom', emoji: '➕', zh: '自定义添加', en: 'Custom' },
 ];
 
@@ -46,7 +46,7 @@ const Screen4AAllergens: React.FC<Props> = ({ onNext, onBack }) => {
       </div>
 
       <div className="mt-6 grid grid-cols-3 gap-2">
-        {allergens.map(a => {
+        {symptomOptions.map(a => {
           const isSelected = selected.includes(a.id);
           return (
             <button
@@ -71,7 +71,7 @@ const Screen4AAllergens: React.FC<Props> = ({ onNext, onBack }) => {
       </div>
 
       <div className="mt-4 flex gap-2 overflow-x-auto pb-1">
-        {extraAllergens.map(a => {
+        {extraSymptoms.map(a => {
           const isSelected = selected.includes(a.id);
           return (
             <button
