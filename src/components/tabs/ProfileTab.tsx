@@ -534,37 +534,52 @@ const ProfileTab = () => {
 
   // === Privacy Settings — connected to SettingsContext ===
   const renderPrivacySettings = () => {
-    const privacyItems: { key: keyof typeof settings; label: string }[] = [
-      { key: 'allowReportGen', label: '允许生成近期报告' },
-      { key: 'allowWatchData', label: '允许 Apple Watch 数据加入分析' },
-      { key: 'allowExportToDoctor', label: '允许将报告导出给医生查看' },
-      { key: 'savePrescriptionImages', label: '保存处方图片' },
+    const dataCollectionItems: { key: keyof typeof settings; label: string; desc: string }[] = [
+      { key: 'allowAIAnalysis', label: '允许 AI 分析用药数据', desc: 'AI 报告、趋势分析功能依赖此项' },
+      { key: 'allowWatchData', label: '允许采集手表健康数据', desc: 'Apple Watch 步态/震颤/心率数据' },
+      { key: 'savePrescriptionImages', label: '保存处方扫描图片', desc: '扫描后是否保留原始图片' },
     ];
+
+    const familyItems: { key: keyof typeof settings; label: string; desc: string }[] = [
+      { key: 'familyViewMedLog', label: '家属可查看用药记录', desc: '家属端能否看到服药状态' },
+      { key: 'familyMissedAlert', label: '家属接收漏服提醒', desc: '患者漏服时通知家属' },
+      { key: 'familyEditMedPlan', label: '家属可编辑药物计划', desc: '家属能否增删改药物' },
+    ];
+
+    const doctorItems: { key: keyof typeof settings; label: string; desc: string }[] = [
+      { key: 'allowReportGen', label: '允许生成就诊报告', desc: '控制 AI 报告生成功能' },
+      { key: 'previewBeforeExport', label: '导出前预览确认', desc: '导出给医生前显示预览' },
+      { key: 'allowExportToDoctor', label: '允许导出数据给医生', desc: '就诊时一键分享功能' },
+    ];
+
+    const renderGroup = (title: string, subtitle: string, items: typeof dataCollectionItems) => (
+      <SectionCard title={title}>
+        <p className="text-xs text-gray-500 mb-3">{subtitle}</p>
+        <div className="space-y-4">
+          {items.map(item => (
+            <div key={item.key} className="flex items-center justify-between gap-4">
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-gray-900">{item.label}</p>
+                <p className="text-xs text-gray-500 mt-0.5">{item.desc}</p>
+              </div>
+              <Toggle
+                checked={settings[item.key] as boolean}
+                onClick={() => updateSetting(item.key, !settings[item.key])}
+              />
+            </div>
+          ))}
+        </div>
+      </SectionCard>
+    );
 
     return (
       <div className="px-5 pt-6 pb-28 space-y-4">
         {renderToast()}
         {renderSettingsHeader('隐私与授权')}
 
-        <SectionCard title="数据授权">
-          <div className="space-y-4">
-            {privacyItems.map(item => (
-              <div key={item.key} className="flex items-center justify-between gap-4">
-                <p className="text-sm font-medium text-gray-900 flex-1">{item.label}</p>
-                <Toggle
-                  checked={settings[item.key] as boolean}
-                  onClick={() => updateSetting(item.key, !settings[item.key])}
-                />
-              </div>
-            ))}
-          </div>
-        </SectionCard>
-
-        <SectionCard title="数据导出说明">
-          <p className="text-sm text-gray-600 leading-relaxed">
-            您的数据用于患者和家人共同账号下的日常照护整理。医生和药剂师没有独立端口，报告由患者或家属主动导出、复制或就诊时展示。
-          </p>
-        </SectionCard>
+        {renderGroup('数据采集权限', '控制 app 能收集和使用哪些数据', dataCollectionItems)}
+        {renderGroup('家属协作权限', '共享账户模式下生效，控制家属能看到或操作的内容', familyItems)}
+        {renderGroup('医生/外部分享', '控制数据如何导出给医疗团队', doctorItems)}
 
         <SectionCard title="知情同意说明">
           <p className="text-sm text-gray-600 leading-relaxed">
@@ -840,111 +855,17 @@ const ProfileTab = () => {
     );
   }
 
-  // Share prefs — connected to SettingsContext
-  const shareItems: { key: keyof typeof settings; label: string }[] = [
-    { key: 'watchDataInAI', label: 'Apple Watch 数据参与 AI 分析' },
-    { key: 'previewBeforeExport', label: '导出给医生前显示预览' },
-  ];
-
-  return (
-    <div className="px-5 pt-6 pb-28 space-y-6">
-      {renderToast()}
-
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-gray-900">{t('tab.profile')}</h1>
-        <button onClick={() => setShowSettings(true)} className="p-1">
-          <Settings size={22} className="text-gray-700" />
-        </button>
-      </div>
-
-      <div className="flex flex-col items-center text-center bg-white border border-gray-200 rounded-2xl p-5">
-        <div className="w-[72px] h-[72px] rounded-2xl bg-gray-100 flex items-center justify-center">
-          <UserRound size={34} className="text-gray-700" />
-        </div>
-        <h2 className="text-xl font-bold text-gray-900 mt-3">{profileInfo.displayName}</h2>
-        <p className="text-xs text-gray-500 mt-1">共同账号 · 帕金森患者与家属一起维护</p>
-        <p className="text-xs text-gray-500 mt-0.5">主治医生：{profileInfo.primaryDoctor} · 诊断时间：{profileInfo.diagnosisTime}</p>
-        <button
-          onClick={() => setEditingProfile(true)}
-          className="mt-3 text-xs border border-gray-200 rounded-lg px-3 py-1.5 text-gray-700 hover:bg-gray-50"
-        >
-          {t('profile.editProfile')}
-        </button>
-      </div>
-
-      <button
-        onClick={() => {
-          setShowSettings(true);
-          setSettingPage('recentReport');
-        }}
-        className="w-full py-3 bg-gray-900 text-white rounded-xl text-sm font-semibold flex items-center justify-center gap-2"
-      >
-        <FileText size={16} />
-        {t('profile.exportReport')}
-      </button>
-
-      <SectionCard title="帕金森档案">
-        <div className="space-y-2.5">
-          {[
-            ['诊断时间', profileInfo.diagnosisTime],
-            ['主要症状', profileInfo.mainSymptoms],
-            ['是否有吞咽困难', profileInfo.swallowingDiff],
-            ['是否有跌倒史', profileInfo.fallHistory],
-            ['是否佩戴手表', profileInfo.wearWatch],
-            ['紧急联系人', profileInfo.emergencyContact],
-          ].map(([label, value]) => (
-            <div key={label} className="flex justify-between gap-4 text-sm">
-              <span className="text-gray-500 flex-shrink-0">{label}</span>
-              <span className="text-gray-900 text-right">{value}</span>
-            </div>
-          ))}
-        </div>
-      </SectionCard>
-
-      <SectionCard title="当前药物清单">
-        <div className="space-y-2">
-          {medications.map(med => (
-            <div key={med.id} className="flex items-center gap-2 text-sm text-gray-800">
-              <span className="w-1.5 h-1.5 rounded-full bg-gray-400 flex-shrink-0" />
-              {med.label}
-            </div>
-          ))}
-        </div>
-        <div className="flex gap-2 mt-3 pt-3 border-t border-gray-100">
-          <button
-            onClick={() => {
-              setShowSettings(true);
-              setSettingPage('manageMeds');
-            }}
-            className="flex-1 py-2 border border-gray-300 rounded-xl text-xs font-medium text-gray-700"
-          >
-            管理药物
-          </button>
-          <button
-            onClick={() => {
-              setShowSettings(true);
-              setSettingPage('visitInfo');
-            }}
-            className="flex-1 py-2 border border-gray-300 rounded-xl text-xs font-medium text-gray-700"
-          >
-            生成就诊信息
-          </button>
-        </div>
-      </SectionCard>
-
       <SectionCard title="共享权限">
-        <p className="text-xs text-gray-500 mb-3">用于共同账号内的数据管理。医生和药剂师没有独立登录入口。</p>
-        <div className="space-y-4">
-          {shareItems.map(item => (
-            <div key={item.key} className="flex items-center justify-between gap-4">
-              <span className="text-sm text-gray-700 min-w-0 flex-1 leading-snug">{item.label}</span>
-              <Toggle
-                checked={settings[item.key] as boolean}
-                onClick={() => updateSetting(item.key, !settings[item.key])}
-              />
-            </div>
-          ))}
-        </div>
+        <p className="text-xs text-gray-500 mb-2">在「设置 → 隐私与授权」中管理全部共享权限。</p>
+        <button
+          onClick={() => {
+            setShowSettings(true);
+            setSettingPage('privacy');
+          }}
+          className="w-full py-2 border border-gray-300 rounded-xl text-xs font-medium text-gray-700"
+        >
+          前往隐私设置
+        </button>
       </SectionCard>
     </div>
   );
