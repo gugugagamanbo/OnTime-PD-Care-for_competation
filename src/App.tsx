@@ -11,7 +11,7 @@ import NotFound from "./pages/NotFound.tsx";
 const queryClient = new QueryClient();
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { loading } = useAuth();
+  const { user, loading, isGuest } = useAuth();
 
   if (loading) {
     return (
@@ -21,8 +21,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     );
   }
 
-  // TODO: 登录功能完成后恢复认证检查
-  // if (!user) return <Auth />;
+  if (!user && !isGuest) return <Auth />;
   return <>{children}</>;
 };
 
