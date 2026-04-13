@@ -2,6 +2,7 @@ import { useMemo, useState, useEffect } from 'react';
 import { Clock, Check, AlertCircle, Package, Phone, X, Bell } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { type MedicationPlanItem, useCareData } from '@/contexts/CareDataContext';
+import { useSettings } from '@/contexts/SettingsContext';
 import { requestNotificationPermission, scheduleMedicationReminders, getNotificationPermission } from '@/services/notificationService';
 
 type MedStatus = 'taken' | 'late' | 'pending' | 'missed';
@@ -70,14 +71,15 @@ const statusConfig: Record<MedStatus, { bg: string; text: string; border: string
 const MedicationTab = () => {
   const { t } = useLanguage();
   const { careTeam, medications } = useCareData();
+  const { settings } = useSettings();
   const [statusOverrides, setStatusOverrides] = useState<Record<number, MedStatus>>({});
   const [toast, setToast] = useState('');
   const [showContactModal, setShowContactModal] = useState(false);
   const [notifPermission, setNotifPermission] = useState(getNotificationPermission());
 
-  // Schedule notifications when medications change
+  // Schedule notifications when medications or settings change
   useEffect(() => {
-    if (notifPermission !== 'granted') return;
+    if (!settings.medReminderEnabled || notifPermission !== 'granted') return;
     
     const instructionMap: Record<string, string> = {
       'med.beforeMeal': '餐前30分钟',
@@ -94,8 +96,8 @@ const MedicationTab = () => {
       }))
     );
     
-    scheduleMedicationReminders(allDoses, 15);
-  }, [medications, notifPermission]);
+    scheduleMedicationReminders(allDoses, settings.advanceMinutes);
+  }, [medications, notifPermission, settings.medReminderEnabled, settings.advanceMinutes]);
 
   const handleEnableNotifications = async () => {
     const granted = await requestNotificationPermission();
