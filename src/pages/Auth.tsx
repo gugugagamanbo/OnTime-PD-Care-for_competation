@@ -139,7 +139,7 @@ const Auth = () => {
                     required
                     value={phone}
                     onChange={e => setPhone(e.target.value.replace(/\D/g, '').slice(0, selectedCountry.maxLen))}
-                    placeholder={selectedCountry.code === '+86' ? '13800138000' : '手机号'}
+                    placeholder="请输入手机号"
                     maxLength={selectedCountry.maxLen}
                     className="flex-1 min-w-0 px-3 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-gray-400"
                   />
