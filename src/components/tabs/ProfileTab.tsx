@@ -448,8 +448,6 @@ const ProfileTab = () => {
                   <Trash2 size={15} />
                 </button>
               )}
-                <Trash2 size={15} />
-              </button>
             </div>
           ))}
         </div>
