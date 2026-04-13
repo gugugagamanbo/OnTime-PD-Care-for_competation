@@ -256,6 +256,10 @@ const ProfileTab = () => {
   };
 
   const handleGenerateVisitInfo = async () => {
+    if (!settings.allowExportToDoctor) {
+      showToast('请先在隐私设置中开启「允许导出数据给医生」');
+      return;
+    }
     setAiLoading(true);
     try {
       const result = await generateVisitSummary({
@@ -433,12 +437,17 @@ const ProfileTab = () => {
               <input
                 value={med.label}
                 onChange={event => updateMedicationLabel(med.id, event.target.value)}
-                className="flex-1 min-w-0 px-3 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-gray-900 focus:outline-none focus:border-gray-400"
+                disabled={!settings.familyEditMedPlan}
+                className={`flex-1 min-w-0 px-3 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-gray-900 focus:outline-none focus:border-gray-400 ${!settings.familyEditMedPlan ? 'opacity-60' : ''}`}
               />
-              <button
-                onClick={() => setMedications(prev => prev.filter(item => item.id !== med.id))}
-                className="h-10 w-10 rounded-xl border border-gray-200 flex items-center justify-center text-gray-500"
-              >
+              {settings.familyEditMedPlan && (
+                <button
+                  onClick={() => setMedications(prev => prev.filter(item => item.id !== med.id))}
+                  className="h-10 w-10 rounded-xl border border-gray-200 flex items-center justify-center text-gray-500"
+                >
+                  <Trash2 size={15} />
+                </button>
+              )}
                 <Trash2 size={15} />
               </button>
             </div>
@@ -517,6 +526,12 @@ const ProfileTab = () => {
         {aiLoading && <Loader2 size={16} className="animate-spin" />}
         {aiLoading ? 'AI 生成中...' : '生成近期报告'}
       </button>
+
+      {recentReportGenerated && settings.previewBeforeExport && (
+        <SectionCard title="报告预览">
+          <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line max-h-48 overflow-y-auto">{recentReportContent}</p>
+        </SectionCard>
+      )}
 
       {recentReportGenerated && (
         <button
