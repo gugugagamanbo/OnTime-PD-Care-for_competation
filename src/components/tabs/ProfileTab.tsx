@@ -5,6 +5,7 @@ import {
   Bell,
   ChevronLeft,
   ChevronRight,
+  Cpu,
   FileText,
   Lock,
   LogOut,
