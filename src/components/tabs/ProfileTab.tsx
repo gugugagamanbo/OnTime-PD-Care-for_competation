@@ -364,7 +364,7 @@ const ProfileTab = () => {
     const reminderItems: { key: keyof typeof settings; label: string; desc: string }[] = [
       { key: 'medReminderEnabled', label: '服药提醒', desc: '按每日时间轴发送提醒' },
       { key: 'missedReRemind', label: '漏服后再次提醒', desc: '漏服超过30分钟后再次提醒' },
-      { key: 'familyNotify', label: '通知共同使用账号的家属', desc: '患者未确认时提醒共同账号使用者' },
+      { key: 'familyMissedAlert', label: '通知共同使用账号的家属', desc: '患者漏服时提醒共同账号使用者' },
       { key: 'nightMode', label: '夜间免打扰', desc: '22:00 - 07:00 不发送非紧急提醒' },
       { key: 'vibration', label: '震动提醒', desc: '适合外出和安静场景' },
       { key: 'largeFont', label: '大字体提醒', desc: '弹出提醒时使用更大字体' },
