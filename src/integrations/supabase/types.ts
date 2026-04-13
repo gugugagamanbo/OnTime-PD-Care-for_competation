@@ -14,7 +14,293 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      care_contacts: {
+        Row: {
+          available_time: string | null
+          contact: string | null
+          created_at: string
+          department: string | null
+          hospital: string | null
+          id: string
+          name: string
+          notes: string | null
+          role: string
+          status: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          available_time?: string | null
+          contact?: string | null
+          created_at?: string
+          department?: string | null
+          hospital?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          role: string
+          status?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          available_time?: string | null
+          contact?: string | null
+          created_at?: string
+          department?: string | null
+          hospital?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          role?: string
+          status?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      clinical_visits: {
+        Row: {
+          created_at: string
+          department: string | null
+          doctor_name: string | null
+          hospital: string | null
+          id: string
+          notes: string | null
+          symptom_summary: string | null
+          updated_at: string
+          user_id: string
+          visit_date: string
+        }
+        Insert: {
+          created_at?: string
+          department?: string | null
+          doctor_name?: string | null
+          hospital?: string | null
+          id?: string
+          notes?: string | null
+          symptom_summary?: string | null
+          updated_at?: string
+          user_id: string
+          visit_date: string
+        }
+        Update: {
+          created_at?: string
+          department?: string | null
+          doctor_name?: string | null
+          hospital?: string | null
+          id?: string
+          notes?: string | null
+          symptom_summary?: string | null
+          updated_at?: string
+          user_id?: string
+          visit_date?: string
+        }
+        Relationships: []
+      }
+      medication_logs: {
+        Row: {
+          actual_time: string | null
+          id: string
+          late_by: string | null
+          logged_at: string
+          medication_id: string | null
+          scheduled_time: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          actual_time?: string | null
+          id?: string
+          late_by?: string | null
+          logged_at?: string
+          medication_id?: string | null
+          scheduled_time: string
+          status: string
+          user_id: string
+        }
+        Update: {
+          actual_time?: string | null
+          id?: string
+          late_by?: string | null
+          logged_at?: string
+          medication_id?: string | null
+          scheduled_time?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "medication_logs_medication_id_fkey"
+            columns: ["medication_id"]
+            isOneToOne: false
+            referencedRelation: "medications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      medications: {
+        Row: {
+          created_at: string
+          dose: string
+          id: string
+          instruction_key: string | null
+          label: string
+          name: string
+          stock_days: number | null
+          stock_remaining: number | null
+          stock_unit: string | null
+          strength: string | null
+          times: string[]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          dose: string
+          id?: string
+          instruction_key?: string | null
+          label: string
+          name: string
+          stock_days?: number | null
+          stock_remaining?: number | null
+          stock_unit?: string | null
+          strength?: string | null
+          times?: string[]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          dose?: string
+          id?: string
+          instruction_key?: string | null
+          label?: string
+          name?: string
+          stock_days?: number | null
+          stock_remaining?: number | null
+          stock_unit?: string | null
+          strength?: string | null
+          times?: string[]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      notifications: {
+        Row: {
+          body: string | null
+          created_at: string
+          id: string
+          is_read: boolean | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          body?: string | null
+          created_at?: string
+          id?: string
+          is_read?: boolean | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Update: {
+          body?: string | null
+          created_at?: string
+          id?: string
+          is_read?: boolean | null
+          title?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          diagnosis_time: string | null
+          display_name: string | null
+          emergency_contact: string | null
+          fall_history: string | null
+          id: string
+          main_symptoms: string | null
+          primary_doctor: string | null
+          role: string | null
+          swallowing_difficulty: string | null
+          updated_at: string
+          user_id: string
+          wearable_device: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          diagnosis_time?: string | null
+          display_name?: string | null
+          emergency_contact?: string | null
+          fall_history?: string | null
+          id?: string
+          main_symptoms?: string | null
+          primary_doctor?: string | null
+          role?: string | null
+          swallowing_difficulty?: string | null
+          updated_at?: string
+          user_id: string
+          wearable_device?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          diagnosis_time?: string | null
+          display_name?: string | null
+          emergency_contact?: string | null
+          fall_history?: string | null
+          id?: string
+          main_symptoms?: string | null
+          primary_doctor?: string | null
+          role?: string | null
+          swallowing_difficulty?: string | null
+          updated_at?: string
+          user_id?: string
+          wearable_device?: string | null
+        }
+        Relationships: []
+      }
+      symptoms: {
+        Row: {
+          id: string
+          logged_at: string
+          note: string | null
+          severity: string
+          shared_to: string[] | null
+          symptom: string
+          time: string | null
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          logged_at?: string
+          note?: string | null
+          severity: string
+          shared_to?: string[] | null
+          symptom: string
+          time?: string | null
+          user_id: string
+        }
+        Update: {
+          id?: string
+          logged_at?: string
+          note?: string | null
+          severity?: string
+          shared_to?: string[] | null
+          symptom?: string
+          time?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
