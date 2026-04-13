@@ -5,7 +5,6 @@ export interface AppSettings {
   medReminderEnabled: boolean;
   advanceMinutes: number;
   missedReRemind: boolean;
-  familyNotify: boolean;
   nightMode: boolean;
   vibration: boolean;
   largeFont: boolean;
@@ -31,7 +30,6 @@ const defaultSettings: AppSettings = {
   medReminderEnabled: true,
   advanceMinutes: 15,
   missedReRemind: true,
-  familyNotify: true,
   nightMode: false,
   vibration: true,
   largeFont: false,
