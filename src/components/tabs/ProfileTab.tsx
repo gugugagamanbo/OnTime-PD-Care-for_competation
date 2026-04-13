@@ -453,31 +453,39 @@ const ProfileTab = () => {
         </div>
       </SectionCard>
 
-      <SectionCard title="新增药物">
-        <div className="flex gap-2">
-          <input
-            value={newMed}
-            onChange={event => setNewMed(event.target.value)}
-            placeholder="例如：多巴丝肼片 125mg（美多芭）"
-            className="flex-1 min-w-0 px-3 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-gray-400"
-          />
-          <button
-            onClick={() => {
-              if (!newMed.trim()) {
-                showToast('请先填写药物信息');
-                return;
-              }
-              setMedications(prev => [...prev, createMedicationFromLabel(newMed.trim())]);
-              setNewMed('');
-              showToast('药物已添加');
-            }}
-            className="h-11 px-3 rounded-xl bg-gray-900 text-white text-sm font-semibold flex items-center gap-1"
-          >
-            <Plus size={15} />
-            添加
-          </button>
+      {settings.familyEditMedPlan && (
+        <SectionCard title="新增药物">
+          <div className="flex gap-2">
+            <input
+              value={newMed}
+              onChange={event => setNewMed(event.target.value)}
+              placeholder="例如：多巴丝肼片 125mg（美多芭）"
+              className="flex-1 min-w-0 px-3 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-gray-400"
+            />
+            <button
+              onClick={() => {
+                if (!newMed.trim()) {
+                  showToast('请先填写药物信息');
+                  return;
+                }
+                setMedications(prev => [...prev, createMedicationFromLabel(newMed.trim())]);
+                setNewMed('');
+                showToast('药物已添加');
+              }}
+              className="h-11 px-3 rounded-xl bg-gray-900 text-white text-sm font-semibold flex items-center gap-1"
+            >
+              <Plus size={15} />
+              添加
+            </button>
+          </div>
+        </SectionCard>
+      )}
+
+      {!settings.familyEditMedPlan && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800 leading-relaxed">
+          编辑功能已关闭。如需修改药物清单，请先在「隐私与授权 → 家属协作权限」中开启「家属可编辑药物计划」。
         </div>
-      </SectionCard>
+      )}
 
       <button
         onClick={async () => {
