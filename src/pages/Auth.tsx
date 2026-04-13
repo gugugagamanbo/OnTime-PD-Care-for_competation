@@ -1,15 +1,32 @@
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { Pill } from 'lucide-react';
+import { ChevronDown, Pill } from 'lucide-react';
+
+const countryCodes = [
+  { code: '+86', flag: '🇨🇳', label: '中国大陆', maxLen: 11 },
+  { code: '+852', flag: '🇭🇰', label: '香港', maxLen: 8 },
+  { code: '+853', flag: '🇲🇴', label: '澳门', maxLen: 8 },
+  { code: '+886', flag: '🇹🇼', label: '台湾', maxLen: 10 },
+  { code: '+1', flag: '🇺🇸', label: '美国/加拿大', maxLen: 10 },
+  { code: '+44', flag: '🇬🇧', label: '英国', maxLen: 10 },
+  { code: '+81', flag: '🇯🇵', label: '日本', maxLen: 11 },
+  { code: '+82', flag: '🇰🇷', label: '韩国', maxLen: 11 },
+  { code: '+65', flag: '🇸🇬', label: '新加坡', maxLen: 8 },
+  { code: '+61', flag: '🇦🇺', label: '澳大利亚', maxLen: 9 },
+];
 
 const Auth = () => {
   const { signInWithPhone, verifyOtp } = useAuth();
   const [phone, setPhone] = useState('');
+  const [selectedCountry, setSelectedCountry] = useState(countryCodes[0]);
+  const [showCountryPicker, setShowCountryPicker] = useState(false);
   const [otp, setOtp] = useState('');
   const [step, setStep] = useState<'phone' | 'otp'>('phone');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [countdown, setCountdown] = useState(0);
+
+  const fullPhone = `${selectedCountry.code}${phone.replace(/\D/g, '')}`;
 
   const startCountdown = () => {
     setCountdown(60);
@@ -25,14 +42,14 @@ const Auth = () => {
     e.preventDefault();
     setError('');
 
-    const cleaned = phone.replace(/[^\d+]/g, '');
-    if (!/^\+?\d{10,15}$/.test(cleaned)) {
-      setError('请输入有效的手机号（含国际区号，如 +8613800138000）');
+    const digits = phone.replace(/\D/g, '');
+    if (digits.length < 6 || digits.length > selectedCountry.maxLen) {
+      setError(`请输入${selectedCountry.maxLen}位手机号`);
       return;
     }
 
     setLoading(true);
-    const { error } = await signInWithPhone(cleaned);
+    const { error } = await signInWithPhone(fullPhone);
     setLoading(false);
 
     if (error) {
@@ -52,9 +69,8 @@ const Auth = () => {
       return;
     }
 
-    const cleaned = phone.replace(/[^\d+]/g, '');
     setLoading(true);
-    const { error } = await verifyOtp(cleaned, otp);
+    const { error } = await verifyOtp(fullPhone, otp);
     setLoading(false);
 
     if (error) setError(error.message);
@@ -63,9 +79,8 @@ const Auth = () => {
   const handleResend = async () => {
     if (countdown > 0) return;
     setError('');
-    const cleaned = phone.replace(/[^\d+]/g, '');
     setLoading(true);
-    const { error } = await signInWithPhone(cleaned);
+    const { error } = await signInWithPhone(fullPhone);
     setLoading(false);
     if (error) setError(error.message);
     else startCountdown();
@@ -89,18 +104,47 @@ const Auth = () => {
                 <h2 className="text-base font-bold text-gray-900 mb-1">手机号登录 / 注册</h2>
                 <p className="text-xs text-gray-500">首次使用将自动创建账号</p>
               </div>
-              <label className="block">
+              <div>
                 <span className="text-xs font-medium text-gray-500">手机号</span>
-                <input
-                  type="tel"
-                  required
-                  value={phone}
-                  onChange={e => setPhone(e.target.value)}
-                  placeholder="+8613800138000"
-                  maxLength={20}
-                  className="mt-1 w-full px-3 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-gray-400"
-                />
-              </label>
+                <div className="mt-1 flex gap-2">
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setShowCountryPicker(!showCountryPicker)}
+                      className="flex items-center gap-1 h-[42px] px-3 rounded-xl border border-gray-200 bg-white text-sm text-gray-900 whitespace-nowrap"
+                    >
+                      <span>{selectedCountry.flag}</span>
+                      <span>{selectedCountry.code}</span>
+                      <ChevronDown size={14} className="text-gray-400" />
+                    </button>
+                    {showCountryPicker && (
+                      <div className="absolute top-full left-0 mt-1 w-52 bg-white border border-gray-200 rounded-xl shadow-lg z-50 max-h-60 overflow-y-auto">
+                        {countryCodes.map(c => (
+                          <button
+                            key={c.code}
+                            type="button"
+                            onClick={() => { setSelectedCountry(c); setShowCountryPicker(false); }}
+                            className={`w-full flex items-center gap-2 px-3 py-2.5 text-sm hover:bg-gray-50 ${c.code === selectedCountry.code ? 'bg-gray-50 font-semibold' : ''}`}
+                          >
+                            <span>{c.flag}</span>
+                            <span className="flex-1 text-left text-gray-900">{c.label}</span>
+                            <span className="text-gray-400">{c.code}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <input
+                    type="tel"
+                    required
+                    value={phone}
+                    onChange={e => setPhone(e.target.value.replace(/\D/g, '').slice(0, selectedCountry.maxLen))}
+                    placeholder={selectedCountry.code === '+86' ? '13800138000' : '手机号'}
+                    maxLength={selectedCountry.maxLen}
+                    className="flex-1 min-w-0 px-3 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-gray-400"
+                  />
+                </div>
+              </div>
               {error && <p className="text-xs text-red-600">{error}</p>}
               <button
                 type="submit"
@@ -114,7 +158,7 @@ const Auth = () => {
             <form onSubmit={handleVerify} className="space-y-4">
               <div>
                 <h2 className="text-base font-bold text-gray-900 mb-1">输入验证码</h2>
-                <p className="text-xs text-gray-500">验证码已发送至 {phone}</p>
+                <p className="text-xs text-gray-500">验证码已发送至 {selectedCountry.code} {phone}</p>
               </div>
               <label className="block">
                 <span className="text-xs font-medium text-gray-500">6位验证码</span>
