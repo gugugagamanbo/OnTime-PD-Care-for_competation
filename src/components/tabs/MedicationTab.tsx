@@ -1,7 +1,8 @@
-import { useMemo, useState } from 'react';
-import { Clock, Check, AlertCircle, Package, Phone, X } from 'lucide-react';
+import { useMemo, useState, useEffect } from 'react';
+import { Clock, Check, AlertCircle, Package, Phone, X, Bell } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { type MedicationPlanItem, useCareData } from '@/contexts/CareDataContext';
+import { requestNotificationPermission, scheduleMedicationReminders, getNotificationPermission } from '@/services/notificationService';
 
 type MedStatus = 'taken' | 'late' | 'pending' | 'missed';
 
@@ -72,6 +73,39 @@ const MedicationTab = () => {
   const [statusOverrides, setStatusOverrides] = useState<Record<number, MedStatus>>({});
   const [toast, setToast] = useState('');
   const [showContactModal, setShowContactModal] = useState(false);
+  const [notifPermission, setNotifPermission] = useState(getNotificationPermission());
+
+  // Schedule notifications when medications change
+  useEffect(() => {
+    if (notifPermission !== 'granted') return;
+    
+    const instructionMap: Record<string, string> = {
+      'med.beforeMeal': '餐前30分钟',
+      'med.afterMeal': '餐后服用',
+      'med.beforeSleep': '睡前服用',
+    };
+    
+    const allDoses = medications.flatMap(m =>
+      m.times.map(time => ({
+        name: m.name,
+        dose: m.dose,
+        time,
+        instruction: instructionMap[m.instructionKey] || '遵医嘱',
+      }))
+    );
+    
+    scheduleMedicationReminders(allDoses, 15);
+  }, [medications, notifPermission]);
+
+  const handleEnableNotifications = async () => {
+    const granted = await requestNotificationPermission();
+    setNotifPermission(granted ? 'granted' : 'denied');
+    if (granted) {
+      showToast('✓ 通知已开启，将在服药时间前提醒');
+    } else {
+      showToast('通知权限被拒绝，请在浏览器设置中开启');
+    }
+  };
 
   const clinicalContacts = useMemo(
     () => careTeam.filter(member => member.role === '医生' || member.role === '药剂师'),
@@ -188,6 +222,22 @@ const MedicationTab = () => {
         <h1 className="text-2xl font-bold text-gray-900">{t('med.title')}</h1>
         <p className="text-sm text-gray-500 mt-1">{t('med.subtitle')}</p>
       </div>
+
+      {/* Notification prompt */}
+      {notifPermission !== 'granted' && notifPermission !== 'unsupported' && (
+        <button
+          onClick={handleEnableNotifications}
+          className="w-full bg-blue-50 border border-blue-200 rounded-2xl p-4 flex items-center gap-3 text-left"
+        >
+          <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center flex-shrink-0">
+            <Bell size={18} className="text-blue-600" />
+          </div>
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-gray-900">开启用药提醒通知</p>
+            <p className="text-xs text-gray-500 mt-0.5">在服药时间前自动提醒，避免漏服</p>
+          </div>
+        </button>
+      )}
 
       {/* Next dose status card */}
       <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm">
