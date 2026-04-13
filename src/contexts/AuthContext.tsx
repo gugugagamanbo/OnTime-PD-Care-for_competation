@@ -8,7 +8,11 @@ interface AuthContextType {
   loading: boolean;
   signInWithPhone: (phone: string) => Promise<{ error: Error | null }>;
   verifyOtp: (phone: string, token: string) => Promise<{ error: Error | null }>;
+  signUpWithEmail: (email: string, password: string) => Promise<{ error: Error | null }>;
+  signInWithEmail: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
+  isGuest: boolean;
+  enterGuestMode: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -17,12 +21,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isGuest, setIsGuest] = useState(false);
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
+      if (session) setIsGuest(false);
     });
 
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -44,12 +50,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return { error: error as Error | null };
   };
 
+  const signUpWithEmail = async (email: string, password: string) => {
+    const { error } = await supabase.auth.signUp({ email, password });
+    return { error: error as Error | null };
+  };
+
+  const signInWithEmail = async (email: string, password: string) => {
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    return { error: error as Error | null };
+  };
+
   const signOut = async () => {
+    setIsGuest(false);
     await supabase.auth.signOut();
   };
 
+  const enterGuestMode = () => {
+    setIsGuest(true);
+  };
+
   return (
-    <AuthContext.Provider value={{ user, session, loading, signInWithPhone, verifyOtp, signOut }}>
+    <AuthContext.Provider value={{
+      user, session, loading,
+      signInWithPhone, verifyOtp,
+      signUpWithEmail, signInWithEmail,
+      signOut, isGuest, enterGuestMode,
+    }}>
       {children}
     </AuthContext.Provider>
   );
