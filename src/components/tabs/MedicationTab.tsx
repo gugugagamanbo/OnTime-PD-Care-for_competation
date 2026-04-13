@@ -2,6 +2,7 @@ import { useMemo, useState, useEffect } from 'react';
 import { Clock, Check, AlertCircle, Package, Phone, X, Bell } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { type MedicationPlanItem, useCareData } from '@/contexts/CareDataContext';
+import { useSettings } from '@/contexts/SettingsContext';
 import { requestNotificationPermission, scheduleMedicationReminders, getNotificationPermission } from '@/services/notificationService';
 
 type MedStatus = 'taken' | 'late' | 'pending' | 'missed';
