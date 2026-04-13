@@ -73,6 +73,39 @@ const MedicationTab = () => {
   const [statusOverrides, setStatusOverrides] = useState<Record<number, MedStatus>>({});
   const [toast, setToast] = useState('');
   const [showContactModal, setShowContactModal] = useState(false);
+  const [notifPermission, setNotifPermission] = useState(getNotificationPermission());
+
+  // Schedule notifications when medications change
+  useEffect(() => {
+    if (notifPermission !== 'granted') return;
+    
+    const instructionMap: Record<string, string> = {
+      'med.beforeMeal': '餐前30分钟',
+      'med.afterMeal': '餐后服用',
+      'med.beforeSleep': '睡前服用',
+    };
+    
+    const allDoses = medications.flatMap(m =>
+      m.times.map(time => ({
+        name: m.name,
+        dose: m.dose,
+        time,
+        instruction: instructionMap[m.instructionKey] || '遵医嘱',
+      }))
+    );
+    
+    scheduleMedicationReminders(allDoses, 15);
+  }, [medications, notifPermission]);
+
+  const handleEnableNotifications = async () => {
+    const granted = await requestNotificationPermission();
+    setNotifPermission(granted ? 'granted' : 'denied');
+    if (granted) {
+      showToast('✓ 通知已开启，将在服药时间前提醒');
+    } else {
+      showToast('通知权限被拒绝，请在浏览器设置中开启');
+    }
+  };
 
   const clinicalContacts = useMemo(
     () => careTeam.filter(member => member.role === '医生' || member.role === '药剂师'),
