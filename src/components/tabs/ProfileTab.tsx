@@ -256,6 +256,10 @@ const ProfileTab = () => {
   };
 
   const handleGenerateVisitInfo = async () => {
+    if (!settings.allowExportToDoctor) {
+      showToast('请先在隐私设置中开启「允许导出数据给医生」');
+      return;
+    }
     setAiLoading(true);
     try {
       const result = await generateVisitSummary({
@@ -364,7 +368,7 @@ const ProfileTab = () => {
     const reminderItems: { key: keyof typeof settings; label: string; desc: string }[] = [
       { key: 'medReminderEnabled', label: '服药提醒', desc: '按每日时间轴发送提醒' },
       { key: 'missedReRemind', label: '漏服后再次提醒', desc: '漏服超过30分钟后再次提醒' },
-      { key: 'familyNotify', label: '通知共同使用账号的家属', desc: '患者未确认时提醒共同账号使用者' },
+      { key: 'familyMissedAlert', label: '通知共同使用账号的家属', desc: '患者漏服时提醒共同账号使用者' },
       { key: 'nightMode', label: '夜间免打扰', desc: '22:00 - 07:00 不发送非紧急提醒' },
       { key: 'vibration', label: '震动提醒', desc: '适合外出和安静场景' },
       { key: 'largeFont', label: '大字体提醒', desc: '弹出提醒时使用更大字体' },
@@ -433,44 +437,55 @@ const ProfileTab = () => {
               <input
                 value={med.label}
                 onChange={event => updateMedicationLabel(med.id, event.target.value)}
-                className="flex-1 min-w-0 px-3 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-gray-900 focus:outline-none focus:border-gray-400"
+                disabled={!settings.familyEditMedPlan}
+                className={`flex-1 min-w-0 px-3 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-gray-900 focus:outline-none focus:border-gray-400 ${!settings.familyEditMedPlan ? 'opacity-60' : ''}`}
               />
-              <button
-                onClick={() => setMedications(prev => prev.filter(item => item.id !== med.id))}
-                className="h-10 w-10 rounded-xl border border-gray-200 flex items-center justify-center text-gray-500"
-              >
-                <Trash2 size={15} />
-              </button>
+              {settings.familyEditMedPlan && (
+                <button
+                  onClick={() => setMedications(prev => prev.filter(item => item.id !== med.id))}
+                  className="h-10 w-10 rounded-xl border border-gray-200 flex items-center justify-center text-gray-500"
+                >
+                  <Trash2 size={15} />
+                </button>
+              )}
             </div>
           ))}
         </div>
       </SectionCard>
 
-      <SectionCard title="新增药物">
-        <div className="flex gap-2">
-          <input
-            value={newMed}
-            onChange={event => setNewMed(event.target.value)}
-            placeholder="例如：多巴丝肼片 125mg（美多芭）"
-            className="flex-1 min-w-0 px-3 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-gray-400"
-          />
-          <button
-            onClick={() => {
-              if (!newMed.trim()) {
-                showToast('请先填写药物信息');
-                return;
-              }
-              setMedications(prev => [...prev, createMedicationFromLabel(newMed.trim())]);
-              setNewMed('');
-              showToast('药物已添加');
-            }}
-            className="h-11 px-3 rounded-xl bg-gray-900 text-white text-sm font-semibold flex items-center gap-1"
-          >
-            <Plus size={15} />
-            添加
-          </button>
+      {settings.familyEditMedPlan && (
+        <SectionCard title="新增药物">
+          <div className="flex gap-2">
+            <input
+              value={newMed}
+              onChange={event => setNewMed(event.target.value)}
+              placeholder="例如：多巴丝肼片 125mg（美多芭）"
+              className="flex-1 min-w-0 px-3 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-gray-400"
+            />
+            <button
+              onClick={() => {
+                if (!newMed.trim()) {
+                  showToast('请先填写药物信息');
+                  return;
+                }
+                setMedications(prev => [...prev, createMedicationFromLabel(newMed.trim())]);
+                setNewMed('');
+                showToast('药物已添加');
+              }}
+              className="h-11 px-3 rounded-xl bg-gray-900 text-white text-sm font-semibold flex items-center gap-1"
+            >
+              <Plus size={15} />
+              添加
+            </button>
+          </div>
+        </SectionCard>
+      )}
+
+      {!settings.familyEditMedPlan && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800 leading-relaxed">
+          编辑功能已关闭。如需修改药物清单，请先在「隐私与授权 → 家属协作权限」中开启「家属可编辑药物计划」。
         </div>
-      </SectionCard>
+      )}
 
       <button
         onClick={async () => {
@@ -517,6 +532,12 @@ const ProfileTab = () => {
         {aiLoading && <Loader2 size={16} className="animate-spin" />}
         {aiLoading ? 'AI 生成中...' : '生成近期报告'}
       </button>
+
+      {recentReportGenerated && settings.previewBeforeExport && (
+        <SectionCard title="报告预览">
+          <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line max-h-48 overflow-y-auto">{recentReportContent}</p>
+        </SectionCard>
+      )}
 
       {recentReportGenerated && (
         <button
