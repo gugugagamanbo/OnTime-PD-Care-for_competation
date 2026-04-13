@@ -101,14 +101,17 @@ const ScanTab = () => {
       stockUnit: '片',
     }));
 
-    setMedications(prev => [...prev, ...newMeds]);
+    const nextMedications = [...medications, ...newMeds];
+    setMedications(nextMedications);
     
     // Save to database if logged in
     if (user) {
       try {
-        await saveMedications();
+        await saveMedications(nextMedications);
       } catch (err) {
         console.error('Save error:', err);
+        showToast('保存到云端失败，请稍后重试');
+        return;
       }
     }
     
@@ -223,7 +226,7 @@ const ScanTab = () => {
             <span className="text-sm font-semibold text-gray-900">{t('scan.prescription')}</span>
           </button>
           <button
-            onClick={() => setView('camera')}
+            onClick={() => setView('text-input')}
             className="bg-white border border-gray-200 rounded-2xl p-5 flex flex-col items-center gap-3 hover:border-gray-400 transition-colors"
           >
             <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center">

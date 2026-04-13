@@ -15,7 +15,7 @@ import {
   Watch,
 } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { type CareRole, type CareTeamMember, useCareData } from '@/contexts/CareDataContext';
+import { type CareRole, type CareTeamMember, type SymptomSeverity, useCareData } from '@/contexts/CareDataContext';
 
 type SymptomKey =
   | 'symptom.tremor'
@@ -34,14 +34,6 @@ type SymptomKey =
   | 'symptom.constipation'
   | 'symptom.fall';
 
-interface SymptomLog {
-  symptom: string;
-  severity: string;
-  time: string;
-  note: string;
-  sharedTo: string[];
-}
-
 const symptomKeys: SymptomKey[] = [
   'symptom.tremor',
   'symptom.rigidity',
@@ -58,11 +50,6 @@ const symptomKeys: SymptomKey[] = [
   'symptom.sleep',
   'symptom.constipation',
   'symptom.fall',
-];
-
-const initialLogs: SymptomLog[] = [
-  { symptom: '僵硬', severity: '中', time: '14:35', note: '午后药效过去后更明显', sharedTo: ['家属', '医生'] },
-  { symptom: '震颤', severity: '轻', time: '09:20', note: '晨起轻微，服药后缓解', sharedTo: ['家属'] },
 ];
 
 const watchMetrics = [
@@ -85,14 +72,13 @@ const careRoleOptions: CareRole[] = ['护工', '家属', '医生', '药剂师'];
 
 const CareCircleTab = () => {
   const { t } = useLanguage();
-  const { careTeam, setCareTeam } = useCareData();
+  const { careTeam, saveCareTeam, symptomLogs, saveSymptomLog } = useCareData();
   const [editingMember, setEditingMember] = useState<CareTeamMember | null>(null);
   const [selectedSymptom, setSelectedSymptom] = useState<SymptomKey | null>(null);
-  const [severity, setSeverity] = useState<string | null>(null);
+  const [severity, setSeverity] = useState<SymptomSeverity | null>(null);
   const [note, setNote] = useState('');
   const [syncFamily, setSyncFamily] = useState(true);
   const [syncDoctor, setSyncDoctor] = useState(false);
-  const [logs, setLogs] = useState<SymptomLog[]>(initialLogs);
   const [toast, setToast] = useState('');
   const [doctorAiVisible, setDoctorAiVisible] = useState(true);
   const [caregiverAiVisible, setCaregiverAiVisible] = useState(false);
@@ -105,7 +91,7 @@ const CareCircleTab = () => {
     setTimeout(() => setToast(''), 2500);
   };
 
-  const handleSaveSymptom = () => {
+  const handleSaveSymptom = async () => {
     if (!selectedSymptom || !severity) return;
     const sharedTo: string[] = [];
     if (syncFamily) sharedTo.push('家属');
@@ -113,20 +99,22 @@ const CareCircleTab = () => {
 
     const now = new Date();
     const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
-    setLogs(prev => [
-      {
+    try {
+      await saveSymptomLog({
         symptom: t(selectedSymptom),
         severity,
         time: timeStr,
         note,
         sharedTo,
-      },
-      ...prev,
-    ]);
-    setSelectedSymptom(null);
-    setSeverity(null);
-    setNote('');
-    showToast('已保存并同步');
+      });
+      setSelectedSymptom(null);
+      setSeverity(null);
+      setNote('');
+      showToast('已保存并同步');
+    } catch (err) {
+      console.error('Failed to save symptom:', err);
+      showToast('症状保存失败，请稍后重试');
+    }
   };
 
   const updateEditingMember = (field: keyof CareTeamMember, value: string) => {
@@ -149,28 +137,37 @@ const CareCircleTab = () => {
     setConfirmingDelete(false);
   };
 
-  const saveEditingMember = () => {
+  const saveEditingMember = async () => {
     if (!editingMember) return;
     const normalizedMember: CareTeamMember = ['医生', '药剂师'].includes(editingMember.role)
       ? editingMember
       : { ...editingMember, hospital: '', department: '', availableTime: '' };
-    setCareTeam(prev => {
-      const exists = prev.some(member => member.id === normalizedMember.id);
-      return exists
-        ? prev.map(member => (member.id === normalizedMember.id ? normalizedMember : member))
-        : [...prev, normalizedMember];
-    });
-    setEditingMember(null);
-    setConfirmingDelete(false);
-    showToast(t('care.editTeam.saved'));
+    const exists = careTeam.some(member => member.id === normalizedMember.id);
+    const nextCareTeam = exists
+      ? careTeam.map(member => (member.id === normalizedMember.id ? normalizedMember : member))
+      : [...careTeam, normalizedMember];
+    try {
+      await saveCareTeam(nextCareTeam);
+      setEditingMember(null);
+      setConfirmingDelete(false);
+      showToast(t('care.editTeam.saved'));
+    } catch (err) {
+      console.error('Failed to save care team:', err);
+      showToast('联系人保存失败，请稍后重试');
+    }
   };
 
-  const deleteEditingMember = () => {
+  const deleteEditingMember = async () => {
     if (!editingMember) return;
-    setCareTeam(prev => prev.filter(member => member.id !== editingMember.id));
-    setEditingMember(null);
-    setConfirmingDelete(false);
-    showToast('已删除照护团队成员');
+    try {
+      await saveCareTeam(careTeam.filter(member => member.id !== editingMember.id));
+      setEditingMember(null);
+      setConfirmingDelete(false);
+      showToast('已删除照护团队成员');
+    } catch (err) {
+      console.error('Failed to delete care team member:', err);
+      showToast('删除失败，请稍后重试');
+    }
   };
 
   const aiDoctorSections = [
@@ -180,7 +177,16 @@ const CareCircleTab = () => {
     [t('care.doctorAi.sectionAttention'), t('care.doctorAi.sectionAttentionText')],
   ];
 
-  const severityOptions = [t('care.mild'), t('care.moderate'), t('care.severe')];
+  const severityOptions: Array<{ value: SymptomSeverity; label: string }> = [
+    { value: 'mild', label: t('care.mild') },
+    { value: 'moderate', label: t('care.moderate') },
+    { value: 'severe', label: t('care.severe') },
+  ];
+  const severityLabel = (value: SymptomSeverity) => {
+    if (value === 'severe') return t('care.severe');
+    if (value === 'moderate') return t('care.moderate');
+    return t('care.mild');
+  };
 
   if (editingMember) {
     const showClinicalFields = editingMember.role === '医生' || editingMember.role === '药剂师';
@@ -273,7 +279,7 @@ const CareCircleTab = () => {
             <div className="space-y-3">
               <p className="text-sm font-semibold text-red-700">确认删除这个成员？</p>
               <p className="text-xs text-gray-500 leading-relaxed">
-                删除后，这个成员的联系人卡片会从照护团队中移除。此操作只影响本地前端原型数据。
+                删除后，这个成员的联系人卡片会从照护团队中移除；登录账号会同步到云端。
               </p>
               <div className="flex gap-2">
                 <button
@@ -382,15 +388,15 @@ const CareCircleTab = () => {
               <div className="flex gap-2">
                 {severityOptions.map(option => (
                   <button
-                    key={option}
-                    onClick={() => setSeverity(option)}
+                    key={option.value}
+                    onClick={() => setSeverity(option.value)}
                     className={`flex-1 py-2 rounded-xl text-sm font-medium border transition-colors ${
-                      severity === option
+                      severity === option.value
                         ? 'bg-gray-900 text-white border-gray-900'
                         : 'bg-white text-gray-700 border-gray-200'
                     }`}
                   >
-                    {option}
+                    {option.label}
                   </button>
                 ))}
               </div>
@@ -437,19 +443,19 @@ const CareCircleTab = () => {
       <div>
         <h2 className="text-base font-semibold text-gray-900 mb-3">{t('care.recentLogs')}</h2>
         <div className="space-y-2">
-          {logs.map((log, index) => (
+          {symptomLogs.map((log, index) => (
             <div key={`${log.time}-${index}`} className="bg-white border border-gray-200 rounded-xl px-4 py-3">
               <div className="flex items-center justify-between mb-1">
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-medium text-gray-900">{log.symptom}</span>
                   <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                    log.severity === t('care.severe')
+                    log.severity === 'severe'
                       ? 'bg-red-50 text-red-700 border border-red-200'
-                      : log.severity === t('care.moderate')
+                      : log.severity === 'moderate'
                         ? 'bg-yellow-50 text-yellow-700 border border-yellow-200'
                         : 'bg-green-50 text-green-700 border border-green-200'
                   }`}>
-                    {log.severity}
+                    {severityLabel(log.severity)}
                   </span>
                 </div>
                 <span className="text-xs text-gray-400">{log.time}</span>

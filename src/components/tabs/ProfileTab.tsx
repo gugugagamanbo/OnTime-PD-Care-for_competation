@@ -5,7 +5,6 @@ import {
   Bell,
   ChevronLeft,
   ChevronRight,
-  Cpu,
   FileText,
   Loader2,
   Lock,
@@ -19,24 +18,14 @@ import {
   UserRound,
 } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { type MedicationPlanItem, useCareData } from '@/contexts/CareDataContext';
+import { type MedicationPlanItem, type ProfileInfo, useCareData } from '@/contexts/CareDataContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSettings } from '@/contexts/SettingsContext';
+import { supabase } from '@/integrations/supabase/client';
 import { generateReport, generateVisitSummary } from '@/services/aiService';
 import { scheduleMedicationReminders, clearAllReminders, requestNotificationPermission, getNotificationPermission } from '@/services/notificationService';
 
 type SettingPage = 'reminders' | 'privacy' | 'visitInfo' | 'security' | 'about' | 'manageMeds' | 'recentReport' | 'apiSettings' | null;
-
-interface ProfileInfo {
-  displayName: string;
-  diagnosisTime: string;
-  primaryDoctor: string;
-  mainSymptoms: string;
-  swallowingDiff: string;
-  fallHistory: string;
-  wearWatch: string;
-  emergencyContact: string;
-}
 
 type PhoneOwner = 'patient' | 'family';
 
@@ -47,17 +36,6 @@ interface BoundPhone {
   phone: string;
   verifiedAt: string;
 }
-
-const initialProfileInfo: ProfileInfo = {
-  displayName: '周慧兰与家人',
-  diagnosisTime: '2021年3月',
-  primaryDoctor: '许明轩医生',
-  mainSymptoms: '右手静止性震颤、午后僵硬、动作变慢',
-  swallowingDiff: '偶尔饮水呛咳',
-  fallHistory: '近3个月1次',
-  wearWatch: 'Apple Watch',
-  emergencyContact: '周岚（女儿）',
-};
 
 const phoneLimits: Record<PhoneOwner, number> = {
   patient: 1,
@@ -92,14 +70,23 @@ const SectionCard = ({ title, children }: { title: string; children: ReactNode }
 
 const ProfileTab = () => {
   const { t, lang, setLang } = useLanguage();
-  const { careTeam, medications, setMedications, saveMedications } = useCareData();
+  const {
+    careTeam,
+    medications,
+    setMedications,
+    saveMedications,
+    profileInfo,
+    setProfileInfo,
+    saveProfileInfo,
+    symptomLogs,
+    medicationLogs,
+  } = useCareData();
   const { signOut, user } = useAuth();
   const { settings, updateSetting, resetSettings } = useSettings();
   const [showSettings, setShowSettings] = useState(false);
   const [editingProfile, setEditingProfile] = useState(false);
   const [settingPage, setSettingPage] = useState<SettingPage>(null);
   const [toast, setToast] = useState('');
-  const [profileInfo, setProfileInfo] = useState<ProfileInfo>(initialProfileInfo);
   const [newMed, setNewMed] = useState('');
   const [visitInfoGenerated, setVisitInfoGenerated] = useState(false);
   const [visitInfoContent, setVisitInfoContent] = useState('');
@@ -240,6 +227,25 @@ const ProfileTab = () => {
     try {
       const result = await generateReport({
         medications: medications.map(m => ({ name: m.name, dose: m.dose, times: m.times })),
+        symptoms: symptomLogs.map(log => ({
+          symptom: log.symptom,
+          severity: log.severity,
+          time: log.time,
+        })),
+        logs: medicationLogs.map(log => ({
+          status: log.status,
+          scheduled_time: log.scheduledTime,
+          actual_time: log.actualTime || undefined,
+        })),
+        deviceData: settings.allowWatchData ? {
+          wearableDevice: profileInfo.wearWatch,
+          careTeam: careTeam.map(member => ({
+            name: member.name,
+            role: member.role,
+            hospital: member.hospital,
+            department: member.department,
+          })),
+        } : undefined,
       });
       if (result.error) {
         showToast(`生成失败: ${result.error}`);
@@ -264,12 +270,47 @@ const ProfileTab = () => {
     try {
       const result = await generateVisitSummary({
         medications: medications.map(m => ({ name: m.name, dose: m.dose, times: m.times })),
+        symptoms: symptomLogs.map(log => ({
+          symptom: log.symptom,
+          severity: log.severity,
+          time: log.time,
+        })),
+        logs: medicationLogs.map(log => ({
+          status: log.status,
+          scheduled_time: log.scheduledTime,
+          actual_time: log.actualTime || undefined,
+        })),
+        deviceData: settings.allowWatchData ? {
+          patientProfile: profileInfo,
+          clinicalContacts: clinicalContacts.map(contact => ({
+            name: contact.name,
+            role: contact.role,
+            hospital: contact.hospital,
+            department: contact.department,
+          })),
+        } : { patientProfile: profileInfo },
       });
       if (result.error) {
         showToast(`生成失败: ${result.error}`);
       } else {
-        setVisitInfoContent(result.result || '');
+        const content = result.result || '';
+        setVisitInfoContent(content);
         setVisitInfoGenerated(true);
+        if (user) {
+          const primaryContact = clinicalContacts[0];
+          const { error } = await supabase
+            .from('clinical_visits')
+            .insert({
+              user_id: user.id,
+              visit_date: new Date().toISOString().slice(0, 10),
+              doctor_name: primaryContact?.name || profileInfo.primaryDoctor || null,
+              hospital: primaryContact?.hospital || null,
+              department: primaryContact?.department || null,
+              symptom_summary: content,
+              notes: '由就诊信息生成器创建',
+            });
+          if (error) console.error('Failed to save clinical visit:', error);
+        }
         showToast('就诊信息已生成');
       }
     } catch (err) {
@@ -295,7 +336,7 @@ const ProfileTab = () => {
     localStorage.removeItem('pd_care_api_config');
     resetSettings();
     clearAllReminders();
-    showToast('本地记录已清空');
+    showToast('本设备设置已清空');
   };
 
   const renderEditProfile = () => (
@@ -352,9 +393,15 @@ const ProfileTab = () => {
       </SectionCard>
 
       <button
-        onClick={() => {
-          setEditingProfile(false);
-          showToast('资料已保存');
+        onClick={async () => {
+          try {
+            await saveProfileInfo(profileInfo);
+            setEditingProfile(false);
+            showToast('资料已保存');
+          } catch (err) {
+            console.error('Failed to save profile:', err);
+            showToast('资料保存失败，请稍后重试');
+          }
         }}
         className="w-full py-2.5 bg-gray-900 text-white rounded-xl text-sm font-semibold"
       >
@@ -490,7 +537,13 @@ const ProfileTab = () => {
       <button
         onClick={async () => {
           if (user) {
-            try { await saveMedications(); } catch {}
+            try {
+              await saveMedications();
+            } catch (err) {
+              console.error('Failed to save medications:', err);
+              showToast('药物清单保存失败，请稍后重试');
+              return;
+            }
           }
           setSettingPage(null);
           showToast('药物清单已保存');
@@ -612,7 +665,7 @@ const ProfileTab = () => {
           onClick={handleDeleteLocalData}
           className="w-full py-2.5 border border-red-200 bg-red-50 text-red-700 rounded-xl text-sm font-semibold"
         >
-          删除本地记录/清空示例数据
+          清空本设备设置
         </button>
       </div>
     );
@@ -828,7 +881,6 @@ const ProfileTab = () => {
       { icon: Bell, label: '提醒设置', page: 'reminders' as const },
       { icon: Lock, label: '隐私与授权', page: 'privacy' as const },
       { icon: FileText, label: '生成就诊信息', page: 'visitInfo' as const },
-      { icon: Cpu, label: 'AI 服务配置', page: 'apiSettings' as const },
       { icon: Shield, label: '账号安全', page: 'security' as const },
       { icon: UserRound, label: '关于与免责声明', page: 'about' as const },
     ];

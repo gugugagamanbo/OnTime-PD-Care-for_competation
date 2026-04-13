@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 
 type Lang = 'zh' | 'en';
 
@@ -219,7 +219,7 @@ const translations = {
   'settings.privacy.exportToDoctor': { zh: '允许将报告导出给医生查看', en: 'Allow Report Export for Doctor' },
   'settings.privacy.savePrescription': { zh: '保存处方图片', en: 'Save Prescription Images' },
   'settings.privacy.dataExport': { zh: '数据导出说明', en: 'Data Export Info' },
-  'settings.privacy.dataExportDesc': { zh: '您的数据存储在本地设备中。导出报告时，报告由您主动生成并分享给医生，医生和药剂师没有独立端口访问您的数据。', en: 'Your data is stored locally. Reports are generated and shared by you; doctors and pharmacists do not have independent access to your data.' },
+  'settings.privacy.dataExportDesc': { zh: '登录账号的数据会保存在云端，访客模式仅保存在当前设备。导出报告时，报告由您主动生成并分享给医生，医生和药剂师没有独立端口访问您的数据。', en: 'Signed-in account data is saved in the cloud; guest mode stays on this device. Reports are generated and shared by you; doctors and pharmacists do not have independent access to your data.' },
   'settings.privacy.deleteLocal': { zh: '删除本地记录', en: 'Delete Local Records' },
   'settings.privacy.deleteConfirm': { zh: '确认删除所有本地数据？此操作不可恢复。', en: 'Delete all local data? This cannot be undone.' },
   'settings.privacy.deleteConfirmBtn': { zh: '确认删除', en: 'Confirm Delete' },
@@ -270,7 +270,7 @@ const translations = {
   'settings.about.watchDisclaimer': { zh: 'Apple Watch 数据免责声明', en: 'Apple Watch Data Disclaimer' },
   'settings.about.watchDisclaimerText': { zh: 'Apple Watch 采集的运动、震颤、心率、睡眠等数据仅作为参考信息，不能单独作为临床判断依据。设备数据可能受佩戴方式、环境等因素影响，存在一定误差。', en: 'Apple Watch data on movement, tremor, heart rate, sleep, etc. is for reference only and cannot serve as the sole basis for clinical judgment. Device data may be affected by wearing position, environment, and other factors.' },
   'settings.about.privacyNote': { zh: '隐私说明', en: 'Privacy Notice' },
-  'settings.about.privacyNoteText': { zh: '本应用中的信息由患者和家属共同账号管理。数据存储在本地设备中。导出报告或展示给医生需由用户主动操作，医生和药剂师没有独立端口访问您的数据。', en: 'Information in this app is managed under a shared patient-family account. Data is stored locally on the device. Exporting reports or showing them to doctors requires user action; doctors and pharmacists do not have independent access to your data.' },
+  'settings.about.privacyNoteText': { zh: '本应用中的信息由患者和家属共同账号管理。登录账号数据会保存在云端，访客模式数据仅保存在当前设备。导出报告或展示给医生需由用户主动操作，医生和药剂师没有独立端口访问您的数据。', en: 'Information in this app is managed under a shared patient-family account. Signed-in data is saved in the cloud; guest-mode data stays on this device. Exporting reports or showing them to doctors requires user action; doctors and pharmacists do not have independent access to your data.' },
   'settings.about.emergency': { zh: '紧急情况提示', en: 'Emergency Notice' },
   'settings.about.emergencyText': { zh: '如出现以下情况，请立即就医或拨打急救电话：严重吞咽困难、跌倒受伤、意识混乱或幻觉加重、胸痛、呼吸困难、突发高热。本应用不具备紧急救助功能，紧急情况请直接联系医疗机构。', en: 'If any of the following occur, seek immediate medical attention: severe swallowing difficulty, fall with injury, worsening confusion or hallucinations, chest pain, breathing difficulty, sudden high fever. This app does not provide emergency services; contact medical institutions directly in emergencies.' },
 } as const;
@@ -286,7 +286,15 @@ interface LanguageContextType {
 const LanguageContext = createContext<LanguageContextType | null>(null);
 
 export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [lang, setLang] = useState<Lang>('zh');
+  const [lang, setLang] = useState<Lang>(() => {
+    const saved = localStorage.getItem('pd_care_language');
+    return saved === 'en' || saved === 'zh' ? saved : 'zh';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('pd_care_language', lang);
+  }, [lang]);
+
   const t = (key: TranslationKey) => translations[key]?.[lang] || key;
   return (
     <LanguageContext.Provider value={{ lang, setLang, t }}>

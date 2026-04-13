@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
 
 export interface AppSettings {
   // Reminder settings
@@ -54,22 +55,39 @@ interface SettingsContextType {
   resetSettings: () => void;
 }
 
-const STORAGE_KEY = 'pd_care_settings';
-
 const SettingsContext = createContext<SettingsContextType | null>(null);
 
-export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [settings, setSettings] = useState<AppSettings>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) return { ...defaultSettings, ...JSON.parse(saved) };
-    } catch {}
+const settingsKeyFor = (userId?: string, isGuest?: boolean) => {
+  if (userId) return `pd_care_settings_${userId}`;
+  if (isGuest) return 'pd_care_settings_guest';
+  return 'pd_care_settings_anonymous';
+};
+
+const loadSettings = (key: string): AppSettings => {
+  try {
+    const saved = localStorage.getItem(key);
+    if (saved) return { ...defaultSettings, ...JSON.parse(saved) };
+  } catch {
     return defaultSettings;
-  });
+  }
+  return defaultSettings;
+};
+
+export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { user, isGuest } = useAuth();
+  const storageKey = useMemo(() => settingsKeyFor(user?.id, isGuest), [isGuest, user?.id]);
+  const [loadedKey, setLoadedKey] = useState(storageKey);
+  const [settings, setSettings] = useState<AppSettings>(() => loadSettings(storageKey));
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
-  }, [settings]);
+    setSettings(loadSettings(storageKey));
+    setLoadedKey(storageKey);
+  }, [storageKey]);
+
+  useEffect(() => {
+    if (loadedKey !== storageKey) return;
+    localStorage.setItem(storageKey, JSON.stringify(settings));
+  }, [loadedKey, settings, storageKey]);
 
   const updateSetting = useCallback(<K extends keyof AppSettings>(key: K, value: AppSettings[K]) => {
     setSettings(prev => ({ ...prev, [key]: value }));
@@ -77,8 +95,8 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const resetSettings = useCallback(() => {
     setSettings(defaultSettings);
-    localStorage.removeItem(STORAGE_KEY);
-  }, []);
+    localStorage.removeItem(storageKey);
+  }, [storageKey]);
 
   return (
     <SettingsContext.Provider value={{ settings, updateSetting, resetSettings }}>
@@ -92,4 +110,3 @@ export const useSettings = () => {
   if (!ctx) throw new Error('useSettings must be used within SettingsProvider');
   return ctx;
 };
-

@@ -17,6 +17,7 @@ const countryCodes = [
 
 type AuthMode = 'email' | 'phone';
 type EmailStep = 'login' | 'signup';
+const PHONE_AUTH_ENABLED = false;
 
 const Auth = () => {
   const { signInWithPhone, verifyOtp, signUpWithEmail, signInWithEmail, enterGuestMode } = useAuth();
@@ -152,12 +153,18 @@ const Auth = () => {
             <Mail size={15} /> 邮箱登录
           </button>
           <button
-            onClick={() => { setMode('phone'); setError(''); setSuccessMsg(''); }}
-            className={`flex-1 py-2.5 rounded-xl text-sm font-medium flex items-center justify-center gap-2 border transition-colors ${
+            onClick={() => {
+              if (!PHONE_AUTH_ENABLED) return;
+              setMode('phone');
+              setError('');
+              setSuccessMsg('');
+            }}
+            disabled={!PHONE_AUTH_ENABLED}
+            className={`flex-1 py-2.5 rounded-xl text-sm font-medium flex items-center justify-center gap-2 border transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
               mode === 'phone' ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-700 border-gray-200'
             }`}
           >
-            <Phone size={15} /> 手机号登录
+            <Phone size={15} /> 手机号登录（暂未开放）
           </button>
         </div>
 

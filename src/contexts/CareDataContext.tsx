@@ -1,8 +1,11 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
 export type CareRole = '护工' | '家属' | '医生' | '药剂师';
+export type MedicationInstructionKey = 'med.beforeMeal' | 'med.afterMeal' | 'med.beforeSleep';
+export type MedStatus = 'taken' | 'late' | 'pending' | 'missed';
+export type SymptomSeverity = 'mild' | 'moderate' | 'severe';
 
 export interface CareTeamMember {
   id: number;
@@ -14,9 +17,8 @@ export interface CareTeamMember {
   department?: string;
   availableTime?: string;
   notes?: string;
+  dbId?: string;
 }
-
-export type MedicationInstructionKey = 'med.beforeMeal' | 'med.afterMeal' | 'med.beforeSleep';
 
 export interface MedicationPlanItem {
   id: number;
@@ -28,18 +30,74 @@ export interface MedicationPlanItem {
   stockRemaining: number;
   stockDays: number;
   stockUnit: string;
-  dbId?: string; // Supabase UUID
+  dbId?: string;
+}
+
+export interface ProfileInfo {
+  displayName: string;
+  diagnosisTime: string;
+  primaryDoctor: string;
+  mainSymptoms: string;
+  swallowingDiff: string;
+  fallHistory: string;
+  wearWatch: string;
+  emergencyContact: string;
+}
+
+export interface SymptomLog {
+  id: number;
+  symptom: string;
+  severity: SymptomSeverity;
+  time: string;
+  note: string;
+  sharedTo: string[];
+  loggedAt?: string;
+  dbId?: string;
+}
+
+export interface MedicationLog {
+  id: number;
+  scheduledTime: string;
+  status: MedStatus;
+  medicationDbId?: string | null;
+  actualTime?: string | null;
+  lateBy?: string | null;
+  loggedAt?: string;
+  dbId?: string;
 }
 
 interface CareDataContextType {
   careTeam: CareTeamMember[];
   setCareTeam: React.Dispatch<React.SetStateAction<CareTeamMember[]>>;
+  saveCareTeam: (nextCareTeam?: CareTeamMember[]) => Promise<CareTeamMember[]>;
   medications: MedicationPlanItem[];
   setMedications: React.Dispatch<React.SetStateAction<MedicationPlanItem[]>>;
-  saveMedications: () => Promise<void>;
-  saveCareTeam: () => Promise<void>;
+  saveMedications: (nextMedications?: MedicationPlanItem[]) => Promise<MedicationPlanItem[]>;
+  profileInfo: ProfileInfo;
+  setProfileInfo: React.Dispatch<React.SetStateAction<ProfileInfo>>;
+  saveProfileInfo: (nextProfileInfo?: ProfileInfo) => Promise<void>;
+  symptomLogs: SymptomLog[];
+  saveSymptomLog: (log: Omit<SymptomLog, 'id' | 'dbId' | 'loggedAt'>) => Promise<SymptomLog | null>;
+  medicationLogs: MedicationLog[];
+  logMedicationStatus: (log: {
+    medicationDbId?: string | null;
+    scheduledTime: string;
+    status: MedStatus;
+    lateBy?: string | null;
+  }) => Promise<MedicationLog | null>;
   dataLoading: boolean;
 }
+
+export const defaultProfileInfo: ProfileInfo = {
+  displayName: '周慧兰与家人',
+  diagnosisTime: '2021年3月',
+  primaryDoctor: '许明轩医生',
+  mainSymptoms: '右手静止性震颤、午后僵硬、动作变慢',
+  swallowingDiff: '偶尔饮水呛咳',
+  fallHistory: '近3个月1次',
+  wearWatch: 'Apple Watch',
+  emergencyContact: '周岚（女儿）',
+};
 
 const demoTeam: CareTeamMember[] = [
   { id: 1, name: '周岚', role: '家属', status: '共同账号使用者', contact: '021-5555-0198', notes: '女儿，负责晚间服药确认、库存补药和复诊陪同。Demo 虚构联系人。' },
@@ -56,74 +114,141 @@ const demoMeds: MedicationPlanItem[] = [
   { id: 5, label: '左旋多巴/卡比多巴控释片 50/200mg', name: '左旋多巴/卡比多巴控释片', dose: '1片', instructionKey: 'med.beforeSleep', times: ['22:00'], stockRemaining: 8, stockDays: 8, stockUnit: '片' },
 ];
 
+const demoSymptomLogs: SymptomLog[] = [
+  { id: 1, symptom: '僵硬', severity: 'moderate', time: '14:35', note: '午后药效过去后更明显', sharedTo: ['家属', '医生'] },
+  { id: 2, symptom: '震颤', severity: 'mild', time: '09:20', note: '晨起轻微，服药后缓解', sharedTo: ['家属'] },
+];
+
 const instructionKeyMap: Record<string, MedicationInstructionKey> = {
   'med.beforeMeal': 'med.beforeMeal',
   'med.afterMeal': 'med.afterMeal',
   'med.beforeSleep': 'med.beforeSleep',
 };
 
+const statusMap: Record<string, MedStatus> = {
+  taken: 'taken',
+  late: 'late',
+  pending: 'pending',
+  missed: 'missed',
+};
+
+const severityMap: Record<string, SymptomSeverity> = {
+  mild: 'mild',
+  moderate: 'moderate',
+  severe: 'severe',
+};
+
 const CareDataContext = createContext<CareDataContextType | null>(null);
 
+const mapMedicationRow = (row: {
+  id: string;
+  label: string;
+  name: string;
+  dose: string;
+  instruction_key: string | null;
+  times: string[] | null;
+  stock_remaining: number | null;
+  stock_days: number | null;
+  stock_unit: string | null;
+}, index: number, fallbackId?: number): MedicationPlanItem => ({
+  id: fallbackId ?? index + 1,
+  dbId: row.id,
+  label: row.label,
+  name: row.name,
+  dose: row.dose,
+  instructionKey: instructionKeyMap[row.instruction_key || 'med.beforeMeal'] || 'med.beforeMeal',
+  times: row.times || [],
+  stockRemaining: row.stock_remaining ?? 0,
+  stockDays: row.stock_days ?? 0,
+  stockUnit: row.stock_unit || '片',
+});
+
+const mapCareContactRow = (row: {
+  id: string;
+  name: string;
+  role: string;
+  status: string | null;
+  contact: string | null;
+  hospital: string | null;
+  department: string | null;
+  available_time: string | null;
+  notes: string | null;
+}, index: number, fallbackId?: number): CareTeamMember => ({
+  id: fallbackId ?? index + 1,
+  dbId: row.id,
+  name: row.name,
+  role: row.role as CareRole,
+  status: row.status || '',
+  contact: row.contact || undefined,
+  hospital: row.hospital || undefined,
+  department: row.department || undefined,
+  availableTime: row.available_time || undefined,
+  notes: row.notes || undefined,
+});
+
 export const CareDataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user, isGuest } = useAuth();
+  const { user } = useAuth();
   const [careTeam, setCareTeam] = useState<CareTeamMember[]>(demoTeam);
   const [medications, setMedications] = useState<MedicationPlanItem[]>(demoMeds);
+  const [profileInfo, setProfileInfo] = useState<ProfileInfo>(defaultProfileInfo);
+  const [symptomLogs, setSymptomLogs] = useState<SymptomLog[]>(demoSymptomLogs);
+  const [medicationLogs, setMedicationLogs] = useState<MedicationLog[]>([]);
   const [dataLoading, setDataLoading] = useState(false);
 
-  // Load from Supabase when user is logged in
   useEffect(() => {
     if (!user) {
-      // Reset to demo data for guests
       setCareTeam(demoTeam);
       setMedications(demoMeds);
+      setProfileInfo(defaultProfileInfo);
+      setSymptomLogs(demoSymptomLogs);
+      setMedicationLogs([]);
       return;
     }
 
     const loadData = async () => {
       setDataLoading(true);
       try {
-        // Load medications
-        const { data: medsData } = await supabase
-          .from('medications')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('created_at');
+        const [{ data: profileData }, { data: medsData }, { data: contactsData }, { data: symptomsData }, { data: logsData }] = await Promise.all([
+          supabase.from('profiles').select('*').eq('user_id', user.id).maybeSingle(),
+          supabase.from('medications').select('*').eq('user_id', user.id).order('created_at'),
+          supabase.from('care_contacts').select('*').eq('user_id', user.id).order('created_at'),
+          supabase.from('symptoms').select('*').eq('user_id', user.id).order('logged_at', { ascending: false }).limit(200),
+          supabase.from('medication_logs').select('*').eq('user_id', user.id).order('logged_at', { ascending: false }).limit(300),
+        ]);
 
-        if (medsData && medsData.length > 0) {
-          setMedications(medsData.map((m, i) => ({
-            id: i + 1,
-            dbId: m.id,
-            label: m.label,
-            name: m.name,
-            dose: m.dose,
-            instructionKey: instructionKeyMap[m.instruction_key || 'med.beforeMeal'] || 'med.beforeMeal',
-            times: m.times || [],
-            stockRemaining: m.stock_remaining ?? 0,
-            stockDays: m.stock_days ?? 0,
-            stockUnit: m.stock_unit || '片',
-          })));
-        }
+        setProfileInfo({
+          displayName: profileData?.display_name || user.email || defaultProfileInfo.displayName,
+          diagnosisTime: profileData?.diagnosis_time || '',
+          primaryDoctor: profileData?.primary_doctor || '',
+          mainSymptoms: profileData?.main_symptoms || '',
+          swallowingDiff: profileData?.swallowing_difficulty || '',
+          fallHistory: profileData?.fall_history || '',
+          wearWatch: profileData?.wearable_device || '',
+          emergencyContact: profileData?.emergency_contact || '',
+        });
 
-        // Load care contacts
-        const { data: contactsData } = await supabase
-          .from('care_contacts')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('created_at');
-
-        if (contactsData && contactsData.length > 0) {
-          setCareTeam(contactsData.map((c, i) => ({
-            id: i + 1,
-            name: c.name,
-            role: c.role as CareRole,
-            status: c.status || '',
-            contact: c.contact || undefined,
-            hospital: c.hospital || undefined,
-            department: c.department || undefined,
-            availableTime: c.available_time || undefined,
-            notes: c.notes || undefined,
-          })));
-        }
+        setMedications((medsData || []).map((m, i) => mapMedicationRow(m, i)));
+        setCareTeam((contactsData || []).map((c, i) => mapCareContactRow(c, i)));
+        setSymptomLogs((symptomsData || []).map((s, i) => ({
+          id: i + 1,
+          dbId: s.id,
+          symptom: s.symptom,
+          severity: severityMap[s.severity] || 'mild',
+          time: s.time || '',
+          note: s.note || '',
+          sharedTo: s.shared_to || [],
+          loggedAt: s.logged_at,
+        })));
+        setMedicationLogs((logsData || []).map((log, i) => ({
+          id: i + 1,
+          dbId: log.id,
+          medicationDbId: log.medication_id,
+          scheduledTime: log.scheduled_time,
+          status: statusMap[log.status] || 'pending',
+          actualTime: log.actual_time,
+          lateBy: log.late_by,
+          loggedAt: log.logged_at,
+        })));
       } catch (err) {
         console.error('Failed to load care data:', err);
       } finally {
@@ -134,53 +259,276 @@ export const CareDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     loadData();
   }, [user]);
 
-  const saveMedications = useCallback(async () => {
+  const saveMedications = useCallback(async (nextMedications?: MedicationPlanItem[]) => {
+    const source = nextMedications ?? medications;
+    if (!user) {
+      setMedications(source);
+      return source;
+    }
+
+    const { data: existingData, error: existingError } = await supabase
+      .from('medications')
+      .select('id')
+      .eq('user_id', user.id);
+    if (existingError) throw existingError;
+
+    const nextDbIds = new Set(source.map(m => m.dbId).filter(Boolean) as string[]);
+    const deleteIds = (existingData || [])
+      .map(row => row.id)
+      .filter(id => !nextDbIds.has(id));
+
+    if (deleteIds.length > 0) {
+      const { error } = await supabase
+        .from('medications')
+        .delete()
+        .eq('user_id', user.id)
+        .in('id', deleteIds);
+      if (error) throw error;
+    }
+
+    const saved: MedicationPlanItem[] = [];
+    for (const item of source) {
+      const payload = {
+        user_id: user.id,
+        label: item.label,
+        name: item.name,
+        dose: item.dose,
+        instruction_key: item.instructionKey,
+        times: item.times,
+        stock_remaining: item.stockRemaining,
+        stock_days: item.stockDays,
+        stock_unit: item.stockUnit,
+      };
+
+      if (item.dbId) {
+        const { data, error } = await supabase
+          .from('medications')
+          .update(payload)
+          .eq('user_id', user.id)
+          .eq('id', item.dbId)
+          .select()
+          .single();
+        if (error) throw error;
+        saved.push(mapMedicationRow(data, saved.length, item.id));
+      } else {
+        const { data, error } = await supabase
+          .from('medications')
+          .insert(payload)
+          .select()
+          .single();
+        if (error) throw error;
+        saved.push(mapMedicationRow(data, saved.length, item.id));
+      }
+    }
+
+    setMedications(saved);
+    return saved;
+  }, [medications, user]);
+
+  const saveCareTeam = useCallback(async (nextCareTeam?: CareTeamMember[]) => {
+    const source = nextCareTeam ?? careTeam;
+    if (!user) {
+      setCareTeam(source);
+      return source;
+    }
+
+    const { data: existingData, error: existingError } = await supabase
+      .from('care_contacts')
+      .select('id')
+      .eq('user_id', user.id);
+    if (existingError) throw existingError;
+
+    const nextDbIds = new Set(source.map(member => member.dbId).filter(Boolean) as string[]);
+    const deleteIds = (existingData || [])
+      .map(row => row.id)
+      .filter(id => !nextDbIds.has(id));
+
+    if (deleteIds.length > 0) {
+      const { error } = await supabase
+        .from('care_contacts')
+        .delete()
+        .eq('user_id', user.id)
+        .in('id', deleteIds);
+      if (error) throw error;
+    }
+
+    const saved: CareTeamMember[] = [];
+    for (const item of source) {
+      const payload = {
+        user_id: user.id,
+        name: item.name,
+        role: item.role,
+        status: item.status,
+        contact: item.contact || null,
+        hospital: item.hospital || null,
+        department: item.department || null,
+        available_time: item.availableTime || null,
+        notes: item.notes || null,
+      };
+
+      if (item.dbId) {
+        const { data, error } = await supabase
+          .from('care_contacts')
+          .update(payload)
+          .eq('user_id', user.id)
+          .eq('id', item.dbId)
+          .select()
+          .single();
+        if (error) throw error;
+        saved.push(mapCareContactRow(data, saved.length, item.id));
+      } else {
+        const { data, error } = await supabase
+          .from('care_contacts')
+          .insert(payload)
+          .select()
+          .single();
+        if (error) throw error;
+        saved.push(mapCareContactRow(data, saved.length, item.id));
+      }
+    }
+
+    setCareTeam(saved);
+    return saved;
+  }, [careTeam, user]);
+
+  const saveProfileInfo = useCallback(async (nextProfileInfo?: ProfileInfo) => {
+    const source = nextProfileInfo ?? profileInfo;
+    setProfileInfo(source);
     if (!user) return;
 
-    // Delete existing and re-insert (simple sync strategy)
-    await supabase.from('medications').delete().eq('user_id', user.id);
+    const { error } = await supabase
+      .from('profiles')
+      .upsert({
+        user_id: user.id,
+        display_name: source.displayName,
+        diagnosis_time: source.diagnosisTime || null,
+        primary_doctor: source.primaryDoctor || null,
+        main_symptoms: source.mainSymptoms || null,
+        swallowing_difficulty: source.swallowingDiff || null,
+        fall_history: source.fallHistory || null,
+        wearable_device: source.wearWatch || null,
+        emergency_contact: source.emergencyContact || null,
+      }, { onConflict: 'user_id' });
+    if (error) throw error;
+  }, [profileInfo, user]);
 
-    const rows = medications.map(m => ({
-      user_id: user.id,
-      label: m.label,
-      name: m.name,
-      dose: m.dose,
-      instruction_key: m.instructionKey,
-      times: m.times,
-      stock_remaining: m.stockRemaining,
-      stock_days: m.stockDays,
-      stock_unit: m.stockUnit,
-    }));
-
-    if (rows.length > 0) {
-      await supabase.from('medications').insert(rows);
+  const saveSymptomLog = useCallback(async (log: Omit<SymptomLog, 'id' | 'dbId' | 'loggedAt'>) => {
+    if (!user) {
+      const localLog: SymptomLog = { ...log, id: Date.now() };
+      setSymptomLogs(prev => [localLog, ...prev]);
+      return localLog;
     }
-  }, [user, medications]);
 
-  const saveCareTeam = useCallback(async () => {
-    if (!user) return;
+    const { data, error } = await supabase
+      .from('symptoms')
+      .insert({
+        user_id: user.id,
+        symptom: log.symptom,
+        severity: log.severity,
+        time: log.time || null,
+        note: log.note || null,
+        shared_to: log.sharedTo,
+      })
+      .select()
+      .single();
+    if (error) throw error;
 
-    await supabase.from('care_contacts').delete().eq('user_id', user.id);
+    const savedLog: SymptomLog = {
+      id: Date.now(),
+      dbId: data.id,
+      symptom: data.symptom,
+      severity: severityMap[data.severity] || 'mild',
+      time: data.time || '',
+      note: data.note || '',
+      sharedTo: data.shared_to || [],
+      loggedAt: data.logged_at,
+    };
+    setSymptomLogs(prev => [savedLog, ...prev]);
+    return savedLog;
+  }, [user]);
 
-    const rows = careTeam.map(c => ({
-      user_id: user.id,
-      name: c.name,
-      role: c.role,
-      status: c.status,
-      contact: c.contact || null,
-      hospital: c.hospital || null,
-      department: c.department || null,
-      available_time: c.availableTime || null,
-      notes: c.notes || null,
-    }));
-
-    if (rows.length > 0) {
-      await supabase.from('care_contacts').insert(rows);
+  const logMedicationStatus = useCallback(async (log: {
+    medicationDbId?: string | null;
+    scheduledTime: string;
+    status: MedStatus;
+    lateBy?: string | null;
+  }) => {
+    const actualTime = log.status === 'taken' || log.status === 'late' ? new Date().toISOString() : null;
+    if (!user) {
+      const localLog: MedicationLog = {
+        id: Date.now(),
+        medicationDbId: log.medicationDbId || null,
+        scheduledTime: log.scheduledTime,
+        status: log.status,
+        actualTime,
+        lateBy: log.lateBy || null,
+        loggedAt: new Date().toISOString(),
+      };
+      setMedicationLogs(prev => [localLog, ...prev]);
+      return localLog;
     }
-  }, [user, careTeam]);
+
+    const { data, error } = await supabase
+      .from('medication_logs')
+      .insert({
+        user_id: user.id,
+        medication_id: log.medicationDbId || null,
+        scheduled_time: log.scheduledTime,
+        actual_time: actualTime,
+        status: log.status,
+        late_by: log.lateBy || null,
+      })
+      .select()
+      .single();
+    if (error) throw error;
+
+    if (log.status === 'missed') {
+      const { error: notificationError } = await supabase
+        .from('notifications')
+        .insert({
+          user_id: user.id,
+          type: 'missed_dose',
+          title: '漏服提醒',
+          body: `${log.scheduledTime} 的用药已标记为未服用`,
+        });
+      if (notificationError) {
+        console.error('Failed to create missed-dose notification:', notificationError);
+      }
+    }
+
+    const savedLog: MedicationLog = {
+      id: Date.now(),
+      dbId: data.id,
+      medicationDbId: data.medication_id,
+      scheduledTime: data.scheduled_time,
+      status: statusMap[data.status] || 'pending',
+      actualTime: data.actual_time,
+      lateBy: data.late_by,
+      loggedAt: data.logged_at,
+    };
+    setMedicationLogs(prev => [savedLog, ...prev]);
+    return savedLog;
+  }, [user]);
 
   return (
-    <CareDataContext.Provider value={{ careTeam, setCareTeam, medications, setMedications, saveMedications, saveCareTeam, dataLoading }}>
+    <CareDataContext.Provider
+      value={{
+        careTeam,
+        setCareTeam,
+        saveCareTeam,
+        medications,
+        setMedications,
+        saveMedications,
+        profileInfo,
+        setProfileInfo,
+        saveProfileInfo,
+        symptomLogs,
+        saveSymptomLog,
+        medicationLogs,
+        logMedicationStatus,
+        dataLoading,
+      }}
+    >
       {children}
     </CareDataContext.Provider>
   );

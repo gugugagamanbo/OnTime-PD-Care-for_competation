@@ -1,15 +1,14 @@
 import { useMemo, useState, useEffect } from 'react';
 import { Clock, Check, AlertCircle, Package, Phone, X, Bell } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { type MedicationPlanItem, useCareData } from '@/contexts/CareDataContext';
+import { type MedicationLog, type MedicationPlanItem, type MedStatus, useCareData } from '@/contexts/CareDataContext';
 import { useSettings } from '@/contexts/SettingsContext';
 import { requestNotificationPermission, scheduleMedicationReminders, getNotificationPermission } from '@/services/notificationService';
-
-type MedStatus = 'taken' | 'late' | 'pending' | 'missed';
 
 interface MedItem {
   id: number;
   medId: number;
+  medicationDbId?: string;
   time: string;
   name: string;
   label: string;
@@ -42,21 +41,38 @@ const defaultStatusForDose = (medication: MedicationPlanItem, time: string): { s
   return { status: 'pending' };
 };
 
-const buildSchedule = (medications: MedicationPlanItem[], statusOverrides: Record<number, MedStatus>): MedItem[] =>
+const isTodayLog = (log: MedicationLog) => {
+  if (!log.loggedAt) return true;
+  const loggedAt = new Date(log.loggedAt);
+  const today = new Date();
+  return loggedAt.getFullYear() === today.getFullYear()
+    && loggedAt.getMonth() === today.getMonth()
+    && loggedAt.getDate() === today.getDate();
+};
+
+const buildSchedule = (
+  medications: MedicationPlanItem[],
+  statusOverrides: Record<number, MedStatus>,
+  medicationLogs: MedicationLog[]
+): MedItem[] =>
   medications
     .flatMap(medication => medication.times.map((time, index) => {
       const id = medication.id * 100 + index;
       const defaultStatus = defaultStatusForDose(medication, time);
+      const latestLog = medication.dbId
+        ? medicationLogs.find(log => log.medicationDbId === medication.dbId && log.scheduledTime === time && isTodayLog(log))
+        : undefined;
       return {
         id,
         medId: medication.id,
+        medicationDbId: medication.dbId,
         time,
         name: medication.name,
         label: medication.label,
         dose: medication.dose,
         instructionKey: medication.instructionKey,
-        status: statusOverrides[id] ?? defaultStatus.status,
-        lateBy: statusOverrides[id] ? undefined : defaultStatus.lateBy,
+        status: statusOverrides[id] ?? latestLog?.status ?? defaultStatus.status,
+        lateBy: statusOverrides[id] ? undefined : latestLog?.lateBy || defaultStatus.lateBy,
       };
     }))
     .sort((a, b) => a.time.localeCompare(b.time));
@@ -70,7 +86,7 @@ const statusConfig: Record<MedStatus, { bg: string; text: string; border: string
 
 const MedicationTab = () => {
   const { t } = useLanguage();
-  const { careTeam, medications } = useCareData();
+  const { careTeam, medications, medicationLogs, logMedicationStatus } = useCareData();
   const { settings } = useSettings();
   const [statusOverrides, setStatusOverrides] = useState<Record<number, MedStatus>>({});
   const [toast, setToast] = useState('');
@@ -114,7 +130,10 @@ const MedicationTab = () => {
     [careTeam]
   );
 
-  const schedule = useMemo(() => buildSchedule(medications, statusOverrides), [medications, statusOverrides]);
+  const schedule = useMemo(
+    () => buildSchedule(medications, statusOverrides, medicationLogs),
+    [medications, medicationLogs, statusOverrides]
+  );
   const nextDose = schedule.find(item => item.status === 'pending') ?? schedule[0];
 
   const showToast = (msg: string) => {
@@ -122,9 +141,20 @@ const MedicationTab = () => {
     setTimeout(() => setToast(''), 2500);
   };
 
-  const updateStatus = (id: number, status: MedStatus) => {
-    setStatusOverrides(prev => ({ ...prev, [id]: status }));
-    if (status === 'taken') showToast('✓');
+  const updateStatus = async (item: MedItem, status: MedStatus) => {
+    setStatusOverrides(prev => ({ ...prev, [item.id]: status }));
+    try {
+      await logMedicationStatus({
+        medicationDbId: item.medicationDbId || null,
+        scheduledTime: item.time,
+        status,
+        lateBy: status === 'late' ? item.lateBy || null : null,
+      });
+      if (status === 'taken') showToast('✓');
+    } catch (err) {
+      console.error('Failed to log medication status:', err);
+      showToast('服药状态保存失败，请稍后重试');
+    }
   };
 
   const handleRemindLater = (id: number) => {
@@ -236,7 +266,7 @@ const MedicationTab = () => {
           </div>
           <div className="flex-1">
             <p className="text-sm font-semibold text-gray-900">开启用药提醒通知</p>
-            <p className="text-xs text-gray-500 mt-0.5">在服药时间前自动提醒，避免漏服</p>
+            <p className="text-xs text-gray-500 mt-0.5">页面打开时会在服药时间前自动提醒</p>
           </div>
         </button>
       )}
@@ -312,7 +342,7 @@ const MedicationTab = () => {
                 {isPending && (
                   <div className="flex gap-2 mt-3 pt-3 border-t border-gray-200/60">
                     <button
-                      onClick={() => updateStatus(item.id, 'taken')}
+                      onClick={() => updateStatus(item, 'taken')}
                       className="flex-1 py-2 bg-gray-900 text-white rounded-xl text-xs font-semibold"
                     >
                       {t('med.markTaken')}
@@ -324,7 +354,7 @@ const MedicationTab = () => {
                       {t('med.remindLater')}
                     </button>
                     <button
-                      onClick={() => updateStatus(item.id, 'missed')}
+                      onClick={() => updateStatus(item, 'missed')}
                       className="px-3 py-2 border border-gray-300 rounded-xl text-xs font-medium text-gray-500"
                     >
                       {t('med.markMissed')}
