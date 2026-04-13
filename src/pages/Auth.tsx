@@ -3,30 +3,72 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Pill } from 'lucide-react';
 
 const Auth = () => {
-  const { signIn, signUp } = useAuth();
-  const [isLogin, setIsLogin] = useState(true);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [displayName, setDisplayName] = useState('');
+  const { signInWithPhone, verifyOtp } = useAuth();
+  const [phone, setPhone] = useState('');
+  const [otp, setOtp] = useState('');
+  const [step, setStep] = useState<'phone' | 'otp'>('phone');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState('');
+  const [countdown, setCountdown] = useState(0);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const startCountdown = () => {
+    setCountdown(60);
+    const timer = setInterval(() => {
+      setCountdown(prev => {
+        if (prev <= 1) { clearInterval(timer); return 0; }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
+  const handleSendCode = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    setMessage('');
-    setLoading(true);
 
-    if (isLogin) {
-      const { error } = await signIn(email, password);
-      if (error) setError(error.message);
-    } else {
-      const { error } = await signUp(email, password, displayName);
-      if (error) setError(error.message);
-      else setMessage('注册成功！请检查邮箱确认链接。');
+    const cleaned = phone.replace(/[^\d+]/g, '');
+    if (!/^\+?\d{10,15}$/.test(cleaned)) {
+      setError('请输入有效的手机号（含国际区号，如 +8613800138000）');
+      return;
     }
+
+    setLoading(true);
+    const { error } = await signInWithPhone(cleaned);
     setLoading(false);
+
+    if (error) {
+      setError(error.message);
+    } else {
+      setStep('otp');
+      startCountdown();
+    }
+  };
+
+  const handleVerify = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+
+    if (!/^\d{6}$/.test(otp)) {
+      setError('请输入6位数字验证码');
+      return;
+    }
+
+    const cleaned = phone.replace(/[^\d+]/g, '');
+    setLoading(true);
+    const { error } = await verifyOtp(cleaned, otp);
+    setLoading(false);
+
+    if (error) setError(error.message);
+  };
+
+  const handleResend = async () => {
+    if (countdown > 0) return;
+    setError('');
+    const cleaned = phone.replace(/[^\d+]/g, '');
+    setLoading(true);
+    const { error } = await signInWithPhone(cleaned);
+    setLoading(false);
+    if (error) setError(error.message);
+    else startCountdown();
   };
 
   return (
@@ -41,69 +83,79 @@ const Auth = () => {
         </div>
 
         <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm">
-          <div className="flex mb-5">
-            <button
-              onClick={() => { setIsLogin(true); setError(''); setMessage(''); }}
-              className={`flex-1 py-2 text-sm font-semibold rounded-xl ${isLogin ? 'bg-gray-900 text-white' : 'text-gray-500'}`}
-            >
-              登录
-            </button>
-            <button
-              onClick={() => { setIsLogin(false); setError(''); setMessage(''); }}
-              className={`flex-1 py-2 text-sm font-semibold rounded-xl ${!isLogin ? 'bg-gray-900 text-white' : 'text-gray-500'}`}
-            >
-              注册
-            </button>
-          </div>
-
-          <form onSubmit={handleSubmit} className="space-y-3">
-            {!isLogin && (
+          {step === 'phone' ? (
+            <form onSubmit={handleSendCode} className="space-y-4">
+              <div>
+                <h2 className="text-base font-bold text-gray-900 mb-1">手机号登录 / 注册</h2>
+                <p className="text-xs text-gray-500">首次使用将自动创建账号</p>
+              </div>
               <label className="block">
-                <span className="text-xs font-medium text-gray-500">显示名称</span>
+                <span className="text-xs font-medium text-gray-500">手机号</span>
                 <input
-                  type="text"
-                  value={displayName}
-                  onChange={e => setDisplayName(e.target.value)}
-                  placeholder="例如：周慧兰与家人"
+                  type="tel"
+                  required
+                  value={phone}
+                  onChange={e => setPhone(e.target.value)}
+                  placeholder="+8613800138000"
+                  maxLength={20}
                   className="mt-1 w-full px-3 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-gray-400"
                 />
               </label>
-            )}
-            <label className="block">
-              <span className="text-xs font-medium text-gray-500">邮箱</span>
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                placeholder="请输入邮箱"
-                className="mt-1 w-full px-3 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-gray-400"
-              />
-            </label>
-            <label className="block">
-              <span className="text-xs font-medium text-gray-500">密码</span>
-              <input
-                type="password"
-                required
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                placeholder="请输入密码"
-                minLength={6}
-                className="mt-1 w-full px-3 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-gray-400"
-              />
-            </label>
-
-            {error && <p className="text-xs text-red-600">{error}</p>}
-            {message && <p className="text-xs text-green-600">{message}</p>}
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-2.5 bg-gray-900 text-white rounded-xl text-sm font-semibold disabled:opacity-50"
-            >
-              {loading ? '请稍候...' : isLogin ? '登录' : '注册'}
-            </button>
-          </form>
+              {error && <p className="text-xs text-red-600">{error}</p>}
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full py-2.5 bg-gray-900 text-white rounded-xl text-sm font-semibold disabled:opacity-50"
+              >
+                {loading ? '发送中...' : '获取验证码'}
+              </button>
+            </form>
+          ) : (
+            <form onSubmit={handleVerify} className="space-y-4">
+              <div>
+                <h2 className="text-base font-bold text-gray-900 mb-1">输入验证码</h2>
+                <p className="text-xs text-gray-500">验证码已发送至 {phone}</p>
+              </div>
+              <label className="block">
+                <span className="text-xs font-medium text-gray-500">6位验证码</span>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  required
+                  value={otp}
+                  onChange={e => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  placeholder="000000"
+                  maxLength={6}
+                  className="mt-1 w-full px-3 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-gray-900 text-center text-lg tracking-[0.5em] placeholder:text-gray-400 placeholder:tracking-[0.5em] focus:outline-none focus:border-gray-400"
+                />
+              </label>
+              {error && <p className="text-xs text-red-600">{error}</p>}
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full py-2.5 bg-gray-900 text-white rounded-xl text-sm font-semibold disabled:opacity-50"
+              >
+                {loading ? '验证中...' : '验证并登录'}
+              </button>
+              <div className="flex items-center justify-between">
+                <button
+                  type="button"
+                  onClick={() => { setStep('phone'); setOtp(''); setError(''); }}
+                  className="text-xs text-gray-500"
+                >
+                  更换手机号
+                </button>
+                <button
+                  type="button"
+                  onClick={handleResend}
+                  disabled={countdown > 0}
+                  className="text-xs text-gray-900 font-medium disabled:text-gray-400"
+                >
+                  {countdown > 0 ? `${countdown}s 后重发` : '重新发送'}
+                </button>
+              </div>
+            </form>
+          )}
 
           <p className="text-xs text-gray-400 text-center mt-4 leading-relaxed">
             患者和家属可以共用一个账号，共同管理用药和照护信息。
