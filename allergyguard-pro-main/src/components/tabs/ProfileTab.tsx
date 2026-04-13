@@ -16,6 +16,7 @@ import {
   UserRound,
 } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { type MedicationPlanItem, useCareData } from '@/contexts/CareDataContext';
 
 type SettingPage = 'reminders' | 'privacy' | 'visitInfo' | 'security' | 'about' | 'manageMeds' | 'recentReport' | null;
 
@@ -30,27 +31,26 @@ interface ProfileInfo {
   emergencyContact: string;
 }
 
+type PhoneOwner = 'patient' | 'family';
+
+interface BoundPhone {
+  id: number;
+  owner: PhoneOwner;
+  label: string;
+  phone: string;
+  verifiedAt: string;
+}
+
 const initialProfileInfo: ProfileInfo = {
-  displayName: '陈阿姨与家人',
-  diagnosisTime: '2021年',
-  primaryDoctor: '王医生',
-  mainSymptoms: '震颤、僵硬、动作变慢',
-  swallowingDiff: '偶尔',
+  displayName: '周慧兰与家人',
+  diagnosisTime: '2021年3月',
+  primaryDoctor: '许明轩医生',
+  mainSymptoms: '右手静止性震颤、午后僵硬、动作变慢',
+  swallowingDiff: '偶尔饮水呛咳',
   fallHistory: '近3个月1次',
   wearWatch: 'Apple Watch',
-  emergencyContact: '妈妈',
+  emergencyContact: '周岚（女儿）',
 };
-
-const initialCurrentMeds = [
-  '左旋多巴/卡比多巴 25/100mg',
-  '多巴胺受体激动剂 0.5mg',
-  '睡前缓释片',
-];
-
-const contacts = [
-  '王医生 · 上海市第一人民医院 · 神经内科',
-  '李药师 · 上海市第一人民医院 · 临床药学部',
-];
 
 const reminderOptions = [
   ['服药提醒', '按每日时间轴发送提醒', true],
@@ -76,6 +76,16 @@ const shareOptions = [
   ['紧急情况下显示用药护照', false],
 ] as const;
 
+const phoneLimits: Record<PhoneOwner, number> = {
+  patient: 1,
+  family: 3,
+};
+
+const initialBoundPhones: BoundPhone[] = [
+  { id: 1, owner: 'patient', label: '周慧兰（患者）', phone: '021-5555-0197', verifiedAt: '2026-04-12' },
+  { id: 2, owner: 'family', label: '周岚（女儿）', phone: '021-5555-0198', verifiedAt: '2026-04-12' },
+];
+
 const Toggle = ({ checked, onClick }: { checked: boolean; onClick: () => void }) => (
   <button
     onClick={onClick}
@@ -99,12 +109,12 @@ const SectionCard = ({ title, children }: { title: string; children: ReactNode }
 
 const ProfileTab = () => {
   const { t, lang, setLang } = useLanguage();
+  const { careTeam, medications, setMedications } = useCareData();
   const [showSettings, setShowSettings] = useState(false);
   const [editingProfile, setEditingProfile] = useState(false);
   const [settingPage, setSettingPage] = useState<SettingPage>(null);
   const [toast, setToast] = useState('');
   const [profileInfo, setProfileInfo] = useState<ProfileInfo>(initialProfileInfo);
-  const [currentMeds, setCurrentMeds] = useState<string[]>(initialCurrentMeds);
   const [newMed, setNewMed] = useState('');
   const [visitInfoGenerated, setVisitInfoGenerated] = useState(false);
   const [recentReportGenerated, setRecentReportGenerated] = useState(false);
@@ -118,7 +128,10 @@ const ProfileTab = () => {
     Object.fromEntries(privacyOptions.map(([label, checked]) => [label, checked]))
   );
   const [selectedAdvanceTime, setSelectedAdvanceTime] = useState('提前15分钟');
-  const [phone, setPhone] = useState('138****6688');
+  const [boundPhones, setBoundPhones] = useState<BoundPhone[]>(initialBoundPhones);
+  const [phoneOwner, setPhoneOwner] = useState<PhoneOwner>('family');
+  const [phoneLabel, setPhoneLabel] = useState('');
+  const [phone, setPhone] = useState('');
   const [code, setCode] = useState('');
 
   const showToast = (msg: string) => {
@@ -147,6 +160,60 @@ const ProfileTab = () => {
 
   const updateProfileInfo = (field: keyof ProfileInfo, value: string) => {
     setProfileInfo(prev => ({ ...prev, [field]: value }));
+  };
+
+  const medicationNameFromLabel = (label: string) => {
+    const trimmed = label.trim();
+    return trimmed.replace(/\s+\d.*$/, '').trim() || trimmed;
+  };
+
+  const updateMedicationLabel = (id: number, label: string) => {
+    setMedications(prev => prev.map(medication => (
+      medication.id === id
+        ? { ...medication, label, name: medicationNameFromLabel(label) }
+        : medication
+    )));
+  };
+
+  const createMedicationFromLabel = (label: string): MedicationPlanItem => ({
+    id: Date.now(),
+    label,
+    name: medicationNameFromLabel(label),
+    dose: '按医嘱',
+    instructionKey: 'med.beforeMeal',
+    times: ['08:00'],
+    stockRemaining: 0,
+    stockDays: 0,
+    stockUnit: '片',
+  });
+
+  const phoneOwnerLabel = (owner: PhoneOwner) => (owner === 'patient' ? '患者' : '家人');
+  const clinicalContacts = careTeam.filter(member => member.role === '医生' || member.role === '药剂师');
+
+  const addBoundPhone = () => {
+    const ownerCount = boundPhones.filter(item => item.owner === phoneOwner).length;
+    if (ownerCount >= phoneLimits[phoneOwner]) {
+      showToast(`${phoneOwnerLabel(phoneOwner)}手机号已达到可绑定数量上限`);
+      return;
+    }
+    if (!phone.trim() || !code.trim()) {
+      showToast('请填写手机号和验证码');
+      return;
+    }
+    setBoundPhones(prev => [
+      ...prev,
+      {
+        id: Date.now(),
+        owner: phoneOwner,
+        label: phoneLabel.trim() || `${phoneOwnerLabel(phoneOwner)}联系人`,
+        phone: phone.trim(),
+        verifiedAt: '今天',
+      },
+    ]);
+    setPhone('');
+    setPhoneLabel('');
+    setCode('');
+    showToast('手机号已绑定');
   };
 
   const renderEditProfile = () => (
@@ -274,19 +341,15 @@ const ProfileTab = () => {
 
       <SectionCard title="当前药物清单">
         <div className="space-y-3">
-          {currentMeds.map((med, index) => (
-            <div key={`${med}-${index}`} className="flex items-center gap-2">
+          {medications.map((med) => (
+            <div key={med.id} className="flex items-center gap-2">
               <input
-                value={med}
-                onChange={event => {
-                  const next = [...currentMeds];
-                  next[index] = event.target.value;
-                  setCurrentMeds(next);
-                }}
+                value={med.label}
+                onChange={event => updateMedicationLabel(med.id, event.target.value)}
                 className="flex-1 min-w-0 px-3 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-gray-900 focus:outline-none focus:border-gray-400"
               />
               <button
-                onClick={() => setCurrentMeds(prev => prev.filter((_, i) => i !== index))}
+                onClick={() => setMedications(prev => prev.filter(item => item.id !== med.id))}
                 className="h-10 w-10 rounded-xl border border-gray-200 flex items-center justify-center text-gray-500"
               >
                 <Trash2 size={15} />
@@ -301,7 +364,7 @@ const ProfileTab = () => {
           <input
             value={newMed}
             onChange={event => setNewMed(event.target.value)}
-            placeholder="例如：左旋多巴/卡比多巴 25/100mg"
+            placeholder="例如：多巴丝肼片 125mg（美多芭）"
             className="flex-1 min-w-0 px-3 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-gray-400"
           />
           <button
@@ -310,7 +373,7 @@ const ProfileTab = () => {
                 showToast('请先填写药物信息');
                 return;
               }
-              setCurrentMeds(prev => [...prev, newMed.trim()]);
+              setMedications(prev => [...prev, createMedicationFromLabel(newMed.trim())]);
               setNewMed('');
               showToast('药物已添加');
             }}
@@ -426,8 +489,8 @@ const ProfileTab = () => {
 
       <SectionCard title="当前药物清单">
         <div className="space-y-2">
-          {currentMeds.map(med => (
-            <p key={med} className="text-sm text-gray-800">· {med}</p>
+          {medications.map(med => (
+            <p key={med.id} className="text-sm text-gray-800">· {med.label}</p>
           ))}
         </div>
       </SectionCard>
@@ -457,9 +520,14 @@ const ProfileTab = () => {
 
       <SectionCard title="医生/药剂师联系人">
         <div className="space-y-2">
-          {contacts.map(contact => (
-            <p key={contact} className="text-sm text-gray-800">· {contact}</p>
+          {clinicalContacts.map(contact => (
+            <p key={contact.id} className="text-sm text-gray-800">
+              · {contact.name} · {contact.hospital || '未填写机构'} · {contact.department || contact.role}
+            </p>
           ))}
+          {clinicalContacts.length === 0 && (
+            <p className="text-sm text-gray-500">请先在照护圈中新增医生或药剂师联系人。</p>
+          )}
         </div>
       </SectionCard>
 
@@ -490,33 +558,87 @@ const ProfileTab = () => {
       {renderSettingsHeader('账号安全')}
 
       <SectionCard title="手机验证码">
+        <div className="grid grid-cols-2 gap-2 mb-3">
+          {(['patient', 'family'] as PhoneOwner[]).map(owner => {
+            const count = boundPhones.filter(item => item.owner === owner).length;
+            return (
+              <button
+                key={owner}
+                onClick={() => setPhoneOwner(owner)}
+                className={`rounded-xl border px-3 py-2 text-left ${
+                  phoneOwner === owner ? 'border-gray-900 bg-gray-900 text-white' : 'border-gray-200 bg-white text-gray-700'
+                }`}
+              >
+                <p className="text-xs font-semibold">{phoneOwnerLabel(owner)}手机号</p>
+                <p className={`text-[11px] mt-0.5 ${phoneOwner === owner ? 'text-gray-200' : 'text-gray-500'}`}>
+                  已绑定 {count}/{phoneLimits[owner]}
+                </p>
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="space-y-2 mb-4">
+          {boundPhones.map(item => (
+            <div key={item.id} className="flex items-center justify-between gap-3 rounded-xl bg-gray-50 border border-gray-100 px-3 py-2">
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-gray-900">{item.label}</p>
+                <p className="text-xs text-gray-500">
+                  {phoneOwnerLabel(item.owner)} · {item.phone} · {item.verifiedAt} 验证
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setBoundPhones(prev => prev.filter(phoneItem => phoneItem.id !== item.id));
+                  showToast('手机号已解绑');
+                }}
+                className="text-xs text-gray-500 border border-gray-200 rounded-lg px-2 py-1 flex-shrink-0"
+              >
+                解绑
+              </button>
+            </div>
+          ))}
+        </div>
+
         <label className="block mb-3">
-          <span className="text-xs font-medium text-gray-500">当前绑定手机号</span>
+          <span className="text-xs font-medium text-gray-500">联系人称呼</span>
+          <input
+            value={phoneLabel}
+            onChange={event => setPhoneLabel(event.target.value)}
+            placeholder={phoneOwner === 'patient' ? '例如：周慧兰（患者）' : '例如：周岚（女儿）'}
+            className="mt-1 w-full px-3 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-gray-400"
+          />
+        </label>
+
+        <label className="block mb-3">
+          <span className="text-xs font-medium text-gray-500">新增绑定手机号</span>
           <input
             value={phone}
             onChange={event => setPhone(event.target.value)}
-            className="mt-1 w-full px-3 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-gray-900 focus:outline-none focus:border-gray-400"
+            placeholder={`输入${phoneOwnerLabel(phoneOwner)}手机号`}
+            className="mt-1 w-full px-3 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-gray-400"
           />
         </label>
+
         <div className="flex gap-2 mb-3">
           <input
             value={code}
             onChange={event => setCode(event.target.value)}
             placeholder="输入验证码"
-            className="flex-1 px-3 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-gray-900 focus:outline-none focus:border-gray-400"
+            className="flex-1 min-w-0 px-3 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-gray-900 focus:outline-none focus:border-gray-400"
           />
           <button
-            onClick={() => showToast('验证码已发送')}
-            className="px-3 py-2.5 border border-gray-300 rounded-xl text-xs font-semibold text-gray-700"
+            onClick={() => showToast(`验证码已发送给${phoneOwnerLabel(phoneOwner)}手机号`)}
+            className="px-3 py-2.5 border border-gray-300 rounded-xl text-xs font-semibold text-gray-700 flex-shrink-0"
           >
             获取验证码
           </button>
         </div>
         <button
-          onClick={() => showToast('验证成功')}
+          onClick={addBoundPhone}
           className="w-full py-2.5 bg-gray-900 text-white rounded-xl text-sm font-semibold"
         >
-          验证并保存
+          验证并绑定
         </button>
       </SectionCard>
 
@@ -546,37 +668,53 @@ const ProfileTab = () => {
 
       <SectionCard title="App 定位">
         <p className="text-sm text-gray-600 leading-relaxed">
-          帕金森照护助手是一款帕金森药物提醒、症状记录、Apple Watch 数据整理和就诊信息生成工具，面向患者和家人共同账号使用。
+          帕金森照护助手是面向患者和家人的日常照护记录工具，用于整理用药提醒、药物库存、症状记录、Apple Watch 数据、照护者状态和就诊前摘要。应用不设置医生端或药剂师端，医生和药剂师只作为联系人被记录；任何报告、联系人信息或就诊摘要都需要由患者或家属主动展示、导出或沟通。
         </p>
       </SectionCard>
 
       <SectionCard title="医疗免责声明">
-        <p className="text-sm text-gray-600 leading-relaxed">
-          本工具不提供诊断，不自动调整药物剂量，不能替代医生建议。所有用药改变都应咨询主治医生。
+        <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">
+          {`本应用提供的信息仅用于健康管理记录和就诊沟通准备，不构成医学诊断、治疗方案、处方建议或紧急医疗服务。
+
+本应用不会自动判断是否需要增减药量、停药、换药或改变服药时间。任何药物剂量、服药频率、联合用药、补药或停药决定，都应由主治医生、药剂师或其他合格医疗专业人员结合病史、查体、检查结果和线下评估后决定。
+
+如果应用中的提醒、库存或报告内容与医生处方、药盒标签或药师说明不一致，应以医疗专业人员的正式医嘱为准，并尽快联系医生或药剂师核对。`}
         </p>
       </SectionCard>
 
       <SectionCard title="AI 免责声明">
-        <p className="text-sm text-gray-600 leading-relaxed">
-          AI 总结仅用于辅助整理信息，可能不完整或存在误差，不应作为诊断或治疗的唯一依据。
+        <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">
+          {`AI 生成的医生摘要、照护者状态总结、Apple Watch 数据解读和可能 OFF 时间段提示，仅用于帮助患者和家属把已有记录整理成更容易沟通的文字。
+
+AI 可能遗漏信息、误读上下文、生成不完整或不准确的判断，也无法替代医生对帕金森病分期、并发症、药物副作用、跌倒风险、吞咽风险、精神症状或其他疾病的综合评估。请勿仅凭 AI 内容作出诊断、治疗、用药或急救决定。
+
+就诊时建议把 AI 总结作为“待讨论材料”展示给医生，而不是作为结论。`}
         </p>
       </SectionCard>
 
       <SectionCard title="Apple Watch 数据免责声明">
-        <p className="text-sm text-gray-600 leading-relaxed">
-          Apple Watch 数据仅作参考，不能单独作为临床判断依据，可能受佩戴方式、设备状态和环境影响。
+        <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">
+          {`Apple Watch 或其他可穿戴设备采集的震颤、活动量、步数、心率、睡眠和夜间活动等数据，仅能作为趋势参考，不能单独作为临床诊断、病情严重程度判断或药物调整依据。
+
+设备数据可能受到佩戴松紧、手表电量、传感器状态、运动场景、个体差异和算法版本影响。若设备数据与患者实际感受不一致，应同时记录主观症状，并在复诊时与医生讨论。`}
         </p>
       </SectionCard>
 
       <SectionCard title="隐私说明">
-        <p className="text-sm text-gray-600 leading-relaxed">
-          信息由患者和家人共同账号管理。导出或展示给医生需由用户主动操作，医生和药剂师没有独立端口访问数据。
+        <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">
+          {`本原型按“患者和家人共同账号”设计。共同账号中的家人可查看和维护用药提醒、照护记录、手机号绑定、联系人和报告导出设置。
+
+医生和药剂师没有独立登录端口，也不会自动获得账号内数据。只有当患者或家属主动导出报告、复制摘要、拨打电话或就诊时展示内容，相关信息才会被分享给照护团队。
+
+如果后续接入真实后端或云端同步，应在正式使用前补充隐私政策、数据存储位置、访问权限、删除机制、授权撤回机制和适用法规说明。`}
         </p>
       </SectionCard>
 
       <SectionCard title="紧急情况提示">
-        <p className="text-sm text-gray-600 leading-relaxed">
-          如出现严重吞咽困难、跌倒受伤、意识混乱、胸痛、呼吸困难或突发高热，应及时就医或拨打急救电话。
+        <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">
+          {`本应用不具备急救、远程监护或实时报警能力，不应用于处理紧急医疗情况。
+
+如出现跌倒受伤、严重吞咽困难或窒息风险、意识混乱或幻觉明显加重、胸痛、呼吸困难、突发高热、自伤风险、突然无法行走或其他危急情况，请立即联系当地急救电话或前往急诊，而不是等待应用提醒或 AI 总结。`}
         </p>
       </SectionCard>
     </div>
@@ -700,10 +838,10 @@ const ProfileTab = () => {
 
       <SectionCard title="当前药物清单">
         <div className="space-y-2">
-          {currentMeds.map(med => (
-            <div key={med} className="flex items-center gap-2 text-sm text-gray-800">
+          {medications.map(med => (
+            <div key={med.id} className="flex items-center gap-2 text-sm text-gray-800">
               <span className="w-1.5 h-1.5 rounded-full bg-gray-400 flex-shrink-0" />
-              {med}
+              {med.label}
             </div>
           ))}
         </div>

@@ -103,7 +103,7 @@ const CareTeamEditSheet = ({ open, onOpenChange, member, onSave }: Props) => {
 
           <div>
             <p className={labelClass}>{t('care.editTeam.contact')}</p>
-            <Input className={fieldClass} value={form.contact} onChange={e => setForm(f => ({ ...f, contact: e.target.value }))} placeholder="138-0000-0000" />
+            <Input className={fieldClass} value={form.contact} onChange={e => setForm(f => ({ ...f, contact: e.target.value }))} placeholder="021-5555-0101" />
           </div>
 
           <div>

@@ -71,7 +71,7 @@ const AccountSecurity = ({ onBack }: Props) => {
       <div className="bg-white border border-gray-200 rounded-2xl p-4">
         <h3 className="text-sm font-semibold text-gray-900 mb-3">{t('settings.security.boundPhone')}</h3>
         <div className="flex items-center justify-between">
-          <span className="text-sm text-gray-700">138****1234</span>
+          <span className="text-sm text-gray-700">021-5555-0197</span>
           <button
             onClick={() => setShowChangePhone(!showChangePhone)}
             className="text-xs text-gray-900 font-medium border border-gray-200 rounded-lg px-3 py-1"
@@ -127,7 +127,7 @@ const AccountSecurity = ({ onBack }: Props) => {
           <Smartphone size={20} className="text-gray-600" />
           <div>
             <p className="text-sm font-medium text-gray-900">{t('settings.security.currentDevice')}</p>
-            <p className="text-xs text-gray-500">iPhone 15 Pro · iOS 18.2</p>
+            <p className="text-xs text-gray-500">演示手机 · iOS Demo</p>
             <p className="text-xs text-gray-400 mt-0.5">{t('settings.security.lastLogin')}：2026-04-12 08:30</p>
           </div>
         </div>

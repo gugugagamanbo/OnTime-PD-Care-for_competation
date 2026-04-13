@@ -14,20 +14,29 @@ interface DetectedMed {
 
 const mockDetectedMeds: DetectedMed[] = [
   {
-    name: '左旋多巴/卡比多巴',
-    strength: '25/100mg',
+    name: '多巴丝肼片',
+    strength: '125mg',
     dose: '1片',
-    times: ['08:00', '12:00', '16:00', '20:00'],
+    times: ['07:00', '11:00', '15:00', '19:00'],
     instruction: '餐前30分钟',
     confidence: '高',
     confirmed: false,
   },
   {
-    name: '多巴胺受体激动剂',
-    strength: '0.5mg',
+    name: '恩他卡朋片',
+    strength: '200mg',
     dose: '1片',
-    times: ['睡前'],
-    instruction: '遵医嘱',
+    times: ['07:00', '11:00', '15:00'],
+    instruction: '与多巴丝肼同服',
+    confidence: '高',
+    confirmed: false,
+  },
+  {
+    name: '普拉克索缓释片',
+    strength: '0.375mg',
+    dose: '1片',
+    times: ['08:00'],
+    instruction: '早餐后',
     confidence: '中',
     confirmed: false,
   },
@@ -192,10 +201,10 @@ const ScanTab = () => {
 
         <div className="bg-white border border-gray-200 rounded-2xl p-4 space-y-3">
           {[
-            ['name', '药物名称', manualMed.name, '例如：左旋多巴/卡比多巴'],
-            ['strength', '规格', manualMed.strength, '例如：25/100mg'],
+            ['name', '药物名称', manualMed.name, '例如：多巴丝肼片'],
+            ['strength', '规格', manualMed.strength, '例如：125mg'],
             ['dose', '每次剂量', manualMed.dose, '例如：1片'],
-            ['times', '服药时间', manualMed.times[0], '例如：08:00，12:00，16:00'],
+            ['times', '服药时间', manualMed.times[0], '例如：07:00，11:00，15:00，19:00'],
             ['instruction', '服药说明', manualMed.instruction, '例如：餐前30分钟'],
           ].map(([field, label, value, placeholder]) => (
             <label key={field} className="block">

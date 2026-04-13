@@ -1,31 +1,63 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Clock, Check, AlertCircle, Package, Phone, X } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { type MedicationPlanItem, useCareData } from '@/contexts/CareDataContext';
 
 type MedStatus = 'taken' | 'late' | 'pending' | 'missed';
 
 interface MedItem {
   id: number;
+  medId: number;
   time: string;
   name: string;
+  label: string;
   dose: string;
   instructionKey: 'med.beforeMeal' | 'med.afterMeal' | 'med.beforeSleep';
   status: MedStatus;
   lateBy?: string;
 }
 
-const initialSchedule: MedItem[] = [
-  { id: 1, time: '08:00', name: '左旋多巴/卡比多巴', dose: '1片', instructionKey: 'med.beforeMeal', status: 'taken' },
-  { id: 2, time: '11:30', name: '多巴胺受体激动剂', dose: '0.5mg', instructionKey: 'med.afterMeal', status: 'late', lateBy: '18分钟' },
-  { id: 3, time: '14:00', name: '左旋多巴/卡比多巴', dose: '1片', instructionKey: 'med.beforeMeal', status: 'pending' },
-  { id: 4, time: '18:00', name: '左旋多巴/卡比多巴', dose: '1片', instructionKey: 'med.beforeMeal', status: 'pending' },
-  { id: 5, time: '22:00', name: '睡前缓释片', dose: '1片', instructionKey: 'med.beforeSleep', status: 'pending' },
-];
+const stockStatus = (days: number) => {
+  if (days <= 5) return { label: '库存偏低', className: 'bg-red-50 text-red-700 border-red-200' };
+  if (days <= 10) return { label: '需要关注', className: 'bg-yellow-50 text-yellow-700 border-yellow-200' };
+  return { label: '库存充足', className: 'bg-green-50 text-green-700 border-green-200' };
+};
 
-const careContacts = [
-  { name: '王医生', role: '神经内科医生', phone: '021-88881200', note: '门诊电话，建议工作日上午联系' },
-  { name: '李药师', role: '临床药师', phone: '021-88881201', note: '药物库存与处方核对' },
-];
+const telFromContact = (contact?: string) => {
+  const digits = contact?.match(/\+?\d[\d\s-]{5,}/)?.[0].replace(/[^\d+]/g, '');
+  return digits || '';
+};
+
+const displayRole = (role: string, department?: string) => {
+  if (role === '医生' && department) return `${department}医生`;
+  if (role === '药剂师' && department) return `${department}药剂师`;
+  return role;
+};
+
+const defaultStatusForDose = (medication: MedicationPlanItem, time: string): { status: MedStatus; lateBy?: string } => {
+  if (medication.id === 1 && time === '07:00') return { status: 'taken' };
+  if (medication.id === 2 && time === '11:00') return { status: 'late', lateBy: '18分钟' };
+  return { status: 'pending' };
+};
+
+const buildSchedule = (medications: MedicationPlanItem[], statusOverrides: Record<number, MedStatus>): MedItem[] =>
+  medications
+    .flatMap(medication => medication.times.map((time, index) => {
+      const id = medication.id * 100 + index;
+      const defaultStatus = defaultStatusForDose(medication, time);
+      return {
+        id,
+        medId: medication.id,
+        time,
+        name: medication.name,
+        label: medication.label,
+        dose: medication.dose,
+        instructionKey: medication.instructionKey,
+        status: statusOverrides[id] ?? defaultStatus.status,
+        lateBy: statusOverrides[id] ? undefined : defaultStatus.lateBy,
+      };
+    }))
+    .sort((a, b) => a.time.localeCompare(b.time));
 
 const statusConfig: Record<MedStatus, { bg: string; text: string; border: string }> = {
   taken: { bg: 'bg-green-50', text: 'text-green-700', border: 'border-green-200' },
@@ -36,9 +68,18 @@ const statusConfig: Record<MedStatus, { bg: string; text: string; border: string
 
 const MedicationTab = () => {
   const { t } = useLanguage();
-  const [schedule, setSchedule] = useState<MedItem[]>(initialSchedule);
+  const { careTeam, medications } = useCareData();
+  const [statusOverrides, setStatusOverrides] = useState<Record<number, MedStatus>>({});
   const [toast, setToast] = useState('');
   const [showContactModal, setShowContactModal] = useState(false);
+
+  const clinicalContacts = useMemo(
+    () => careTeam.filter(member => member.role === '医生' || member.role === '药剂师'),
+    [careTeam]
+  );
+
+  const schedule = useMemo(() => buildSchedule(medications, statusOverrides), [medications, statusOverrides]);
+  const nextDose = schedule.find(item => item.status === 'pending') ?? schedule[0];
 
   const showToast = (msg: string) => {
     setToast(msg);
@@ -46,7 +87,7 @@ const MedicationTab = () => {
   };
 
   const updateStatus = (id: number, status: MedStatus) => {
-    setSchedule(prev => prev.map(item => item.id === id ? { ...item, status } : item));
+    setStatusOverrides(prev => ({ ...prev, [id]: status }));
     if (status === 'taken') showToast('✓');
   };
 
@@ -86,26 +127,47 @@ const MedicationTab = () => {
             </div>
 
             <div className="space-y-2">
-              {careContacts.map(contact => (
-                <div key={contact.phone} className="border border-gray-200 rounded-xl p-3">
+              {clinicalContacts.map(contact => {
+                const phone = telFromContact(contact.contact);
+                return (
+                <div key={contact.id} className="border border-gray-200 rounded-xl p-3">
                   <div className="flex items-center justify-between gap-3">
                     <div className="min-w-0">
                       <p className="text-sm font-semibold text-gray-900">{contact.name}</p>
-                      <p className="text-xs text-gray-500">{contact.role}</p>
-                      <p className="text-xs text-gray-400 mt-1">{contact.phone}</p>
+                      <p className="text-xs text-gray-500">{displayRole(contact.role, contact.department)}</p>
+                      <p className="text-xs text-gray-400 mt-1">{contact.contact || '暂未填写电话'}</p>
                     </div>
-                    <a
-                      href={`tel:${contact.phone}`}
-                      onClick={() => showToast('正在跳转到电话 App...')}
-                      className="h-10 px-3 rounded-xl bg-gray-900 text-white text-xs font-semibold flex items-center gap-1.5 flex-shrink-0"
-                    >
-                      <Phone size={14} />
-                      拨打
-                    </a>
+                    {phone ? (
+                      <a
+                        href={`tel:${phone}`}
+                        onClick={() => showToast('正在跳转到电话 App...')}
+                        className="h-10 px-3 rounded-xl bg-gray-900 text-white text-xs font-semibold flex items-center gap-1.5 flex-shrink-0"
+                      >
+                        <Phone size={14} />
+                        拨打
+                      </a>
+                    ) : (
+                      <button
+                        disabled
+                        className="h-10 px-3 rounded-xl bg-gray-100 text-gray-400 text-xs font-semibold flex items-center gap-1.5 flex-shrink-0"
+                      >
+                        <Phone size={14} />
+                        无电话
+                      </button>
+                    )}
                   </div>
-                  <p className="text-xs text-gray-500 mt-2">{contact.note}</p>
+                  <p className="text-xs text-gray-500 mt-2">
+                    {contact.availableTime ? `可沟通时间：${contact.availableTime}` : '可在照护圈中补充可沟通时间'}
+                  </p>
+                  {contact.notes && <p className="text-xs text-gray-500 mt-1">{contact.notes}</p>}
                 </div>
-              ))}
+                );
+              })}
+              {clinicalContacts.length === 0 && (
+                <div className="border border-dashed border-gray-200 rounded-xl p-3 text-xs text-gray-500 leading-relaxed">
+                  暂无医生或药剂师联系人。请先在照护圈中新增医生或药剂师，保存后会自动同步到这里。
+                </div>
+              )}
             </div>
 
             <button
@@ -133,18 +195,18 @@ const MedicationTab = () => {
           <Clock size={14} />
           <span>{t('med.nextDose')}</span>
         </div>
-        <p className="text-lg font-bold text-gray-900">左旋多巴/卡比多巴</p>
+        <p className="text-lg font-bold text-gray-900">{nextDose?.label || '暂无待服药物'}</p>
         <div className="flex items-center justify-between mt-2">
           <div className="flex items-center gap-3">
-            <span className="text-sm text-gray-600">{t('med.dose')}</span>
+            <span className="text-sm text-gray-600">{nextDose?.dose || t('med.dose')}</span>
             <span className="text-sm text-gray-400">·</span>
-            <span className="text-sm text-gray-600">14:00</span>
+            <span className="text-sm text-gray-600">{nextDose?.time || '--:--'}</span>
           </div>
           <span className="text-sm font-semibold text-gray-900">{t('med.minutesLeft')}</span>
         </div>
         <div className="mt-3 pt-3 border-t border-gray-100">
           <div className="flex items-center justify-between">
-            <span className="text-xs text-gray-500">{t('med.todayProgress')}</span>
+            <span className="text-xs text-gray-500">已完成 {takenCount}/{schedule.length} 次</span>
             <div className="flex gap-1">
               {schedule.map((item) => (
                 <div
@@ -179,7 +241,7 @@ const MedicationTab = () => {
                         {statusLabel(item)}
                       </span>
                     </div>
-                    <p className="text-sm font-medium text-gray-800">{item.name}</p>
+                    <p className="text-sm font-medium text-gray-800">{item.label}</p>
                     <div className="flex items-center gap-2 mt-1">
                       <span className="text-xs text-gray-500">{item.dose}</span>
                       <span className="text-xs text-gray-400">·</span>
@@ -248,8 +310,29 @@ const MedicationTab = () => {
           <Package size={16} className="text-gray-600" />
           <h3 className="text-sm font-semibold text-gray-900">{t('med.stock')}</h3>
         </div>
-        <p className="text-sm text-gray-700">左旋多巴/卡比多巴</p>
-        <p className="text-xs text-gray-500 mt-1">{t('med.stockDays')}</p>
+        <div className="space-y-2">
+          {medications.map(item => {
+            const status = stockStatus(item.stockDays);
+            return (
+              <div key={item.id} className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2.5">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-gray-900">{item.label}</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      关联药物：今日用药时间轴中的「{item.label}」
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      剩余 {item.stockRemaining}{item.stockUnit} · 预计还剩 {item.stockDays} 天
+                    </p>
+                  </div>
+                  <span className={`text-[11px] px-2 py-1 rounded-full border flex-shrink-0 ${status.className}`}>
+                    {status.label}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
         <button
           onClick={() => setShowContactModal(true)}
           className="mt-3 w-full py-2 border-2 border-gray-400 rounded-xl text-sm font-semibold text-gray-800 hover:bg-gray-50 transition-colors"

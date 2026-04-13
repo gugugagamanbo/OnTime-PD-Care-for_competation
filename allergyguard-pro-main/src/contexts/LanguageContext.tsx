@@ -179,7 +179,7 @@ const translations = {
   'care.doctorAi.addedToReport': { zh: '已加入近期报告', en: 'Added to report' },
   'care.doctorAi.copied': { zh: '已复制到剪贴板', en: 'Copied to clipboard' },
   'care.doctorAi.sectionMeds': { zh: '本周用药情况', en: 'This Week Medication' },
-  'care.doctorAi.sectionMedsText': { zh: '本周共服药 32 次，按时率 86%，漏服 1 次（周三 14:00），延迟服药 3 次（平均延迟 18 分钟）。主要延迟发生在午间剂量。', en: 'This week: 32 doses taken, 86% on-time rate, 1 missed (Wed 14:00), 3 delayed (avg 18 min late). Delays mainly in afternoon doses.' },
+  'care.doctorAi.sectionMedsText': { zh: '当前方案包含多巴丝肼、恩他卡朋、普拉克索缓释片、雷沙吉兰和睡前控释片。本周按时率 86%，漏服 1 次，延迟服药 3 次（平均延迟 18 分钟），主要延迟发生在午间剂量。', en: 'Current regimen includes levodopa/benserazide, entacapone, pramipexole ER, rasagiline, and bedtime controlled-release levodopa/carbidopa. This week: 86% on-time rate, 1 missed dose, and 3 delayed doses averaging 18 minutes late, mainly around midday.' },
   'care.doctorAi.sectionSymptoms': { zh: '主要症状变化', en: 'Key Symptom Changes' },
   'care.doctorAi.sectionSymptomsText': { zh: '本周记录僵硬 5 次（主要在 14:00-16:00），震颤 3 次（晨起轻微），异动症 1 次。下午僵硬频率较上周增加。', en: 'This week: rigidity 5 times (mainly 14:00-16:00), tremor 3 times (mild mornings), dyskinesia once. Afternoon rigidity increased vs. last week.' },
   'care.doctorAi.sectionWatch': { zh: 'Apple Watch 观察', en: 'Apple Watch Observations' },

@@ -15,20 +15,7 @@ import {
   Watch,
 } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
-
-type CareRole = '护工' | '家属' | '医生' | '药剂师';
-
-interface CareTeamMember {
-  id: number;
-  name: string;
-  role: CareRole;
-  status: string;
-  contact?: string;
-  hospital?: string;
-  department?: string;
-  availableTime?: string;
-  notes?: string;
-}
+import { type CareRole, type CareTeamMember, useCareData } from '@/contexts/CareDataContext';
 
 type SymptomKey =
   | 'symptom.tremor'
@@ -54,32 +41,6 @@ interface SymptomLog {
   note: string;
   sharedTo: string[];
 }
-
-const initialCareTeam: CareTeamMember[] = [
-  { id: 1, name: '妈妈', role: '家属', status: '共同账号使用者', contact: '138****6688', notes: '主要照护者' },
-  {
-    id: 2,
-    name: '王医生',
-    role: '医生',
-    status: '联系人信息',
-    contact: '门诊电话 021-8888 1200',
-    hospital: '上海市第一人民医院',
-    department: '神经内科',
-    availableTime: '周二上午门诊后',
-    notes: '复诊时展示近期报告',
-  },
-  {
-    id: 3,
-    name: '李药师',
-    role: '药剂师',
-    status: '联系人信息',
-    contact: 'li.pharm@example.com',
-    hospital: '上海市第一人民医院',
-    department: '临床药学部',
-    availableTime: '工作日 14:00-16:00',
-    notes: '可协助核对处方录入结果',
-  },
-];
 
 const symptomKeys: SymptomKey[] = [
   'symptom.tremor',
@@ -124,7 +85,7 @@ const careRoleOptions: CareRole[] = ['护工', '家属', '医生', '药剂师'];
 
 const CareCircleTab = () => {
   const { t } = useLanguage();
-  const [careTeam, setCareTeam] = useState<CareTeamMember[]>(initialCareTeam);
+  const { careTeam, setCareTeam } = useCareData();
   const [editingMember, setEditingMember] = useState<CareTeamMember | null>(null);
   const [selectedSymptom, setSelectedSymptom] = useState<SymptomKey | null>(null);
   const [severity, setSeverity] = useState<string | null>(null);

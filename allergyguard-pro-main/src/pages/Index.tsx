@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { LanguageProvider } from '@/contexts/LanguageContext';
+import { CareDataProvider } from '@/contexts/CareDataContext';
 import BottomNav from '@/components/BottomNav';
 import MedicationTab from '@/components/tabs/MedicationTab';
 import CareCircleTab from '@/components/tabs/CareCircleTab';
@@ -27,7 +28,9 @@ const AppShell = () => {
 const Index = () => {
   return (
     <LanguageProvider>
-      <AppShell />
+      <CareDataProvider>
+        <AppShell />
+      </CareDataProvider>
     </LanguageProvider>
   );
 };

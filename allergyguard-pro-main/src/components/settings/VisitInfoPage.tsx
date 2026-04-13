@@ -23,9 +23,11 @@ const VisitInfoPage = ({ onBack }: Props) => {
   };
 
   const currentMeds = [
-    '左旋多巴/卡比多巴 25/100mg — 每日4次',
-    '多巴胺受体激动剂 0.5mg — 每日1次',
-    '睡前缓释片 — 每日1次',
+    '多巴丝肼片 125mg（美多芭）— 每日4次，餐前30分钟',
+    '恩他卡朋片 200mg — 每日3次，与多巴丝肼同服',
+    '普拉克索缓释片 0.375mg — 每日1次，早餐后',
+    '雷沙吉兰片 1mg — 每日1次，早餐后',
+    '左旋多巴/卡比多巴控释片 50/200mg — 每晚睡前1次',
   ];
 
   return (
@@ -137,12 +139,12 @@ const VisitInfoPage = ({ onBack }: Props) => {
         </div>
         <div className="space-y-2">
           <div className="flex justify-between text-sm">
-            <span className="text-gray-500">王医生</span>
-            <span className="text-gray-900">神经内科</span>
+            <span className="text-gray-500">许明轩医生</span>
+            <span className="text-gray-900">明和神经医学中心（Demo）· 神经内科</span>
           </div>
           <div className="flex justify-between text-sm">
-            <span className="text-gray-500">李药师</span>
-            <span className="text-gray-900">临床药师</span>
+            <span className="text-gray-500">林若晴药师</span>
+            <span className="text-gray-900">明和神经医学中心（Demo）· 临床药学部</span>
           </div>
         </div>
       </div>
