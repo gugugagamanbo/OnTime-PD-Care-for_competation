@@ -223,6 +223,22 @@ const MedicationTab = () => {
         <p className="text-sm text-gray-500 mt-1">{t('med.subtitle')}</p>
       </div>
 
+      {/* Notification prompt */}
+      {notifPermission !== 'granted' && notifPermission !== 'unsupported' && (
+        <button
+          onClick={handleEnableNotifications}
+          className="w-full bg-blue-50 border border-blue-200 rounded-2xl p-4 flex items-center gap-3 text-left"
+        >
+          <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center flex-shrink-0">
+            <Bell size={18} className="text-blue-600" />
+          </div>
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-gray-900">开启用药提醒通知</p>
+            <p className="text-xs text-gray-500 mt-0.5">在服药时间前自动提醒，避免漏服</p>
+          </div>
+        </button>
+      )}
+
       {/* Next dose status card */}
       <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm">
         <div className="flex items-center gap-2 text-xs text-gray-500 mb-3">
