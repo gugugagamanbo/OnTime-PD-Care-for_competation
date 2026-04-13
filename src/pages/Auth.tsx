@@ -104,18 +104,47 @@ const Auth = () => {
                 <h2 className="text-base font-bold text-gray-900 mb-1">手机号登录 / 注册</h2>
                 <p className="text-xs text-gray-500">首次使用将自动创建账号</p>
               </div>
-              <label className="block">
+              <div>
                 <span className="text-xs font-medium text-gray-500">手机号</span>
-                <input
-                  type="tel"
-                  required
-                  value={phone}
-                  onChange={e => setPhone(e.target.value)}
-                  placeholder="+8613800138000"
-                  maxLength={20}
-                  className="mt-1 w-full px-3 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-gray-400"
-                />
-              </label>
+                <div className="mt-1 flex gap-2">
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setShowCountryPicker(!showCountryPicker)}
+                      className="flex items-center gap-1 h-[42px] px-3 rounded-xl border border-gray-200 bg-white text-sm text-gray-900 whitespace-nowrap"
+                    >
+                      <span>{selectedCountry.flag}</span>
+                      <span>{selectedCountry.code}</span>
+                      <ChevronDown size={14} className="text-gray-400" />
+                    </button>
+                    {showCountryPicker && (
+                      <div className="absolute top-full left-0 mt-1 w-52 bg-white border border-gray-200 rounded-xl shadow-lg z-50 max-h-60 overflow-y-auto">
+                        {countryCodes.map(c => (
+                          <button
+                            key={c.code}
+                            type="button"
+                            onClick={() => { setSelectedCountry(c); setShowCountryPicker(false); }}
+                            className={`w-full flex items-center gap-2 px-3 py-2.5 text-sm hover:bg-gray-50 ${c.code === selectedCountry.code ? 'bg-gray-50 font-semibold' : ''}`}
+                          >
+                            <span>{c.flag}</span>
+                            <span className="flex-1 text-left text-gray-900">{c.label}</span>
+                            <span className="text-gray-400">{c.code}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <input
+                    type="tel"
+                    required
+                    value={phone}
+                    onChange={e => setPhone(e.target.value.replace(/\D/g, '').slice(0, selectedCountry.maxLen))}
+                    placeholder={selectedCountry.code === '+86' ? '13800138000' : '手机号'}
+                    maxLength={selectedCountry.maxLen}
+                    className="flex-1 min-w-0 px-3 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-gray-400"
+                  />
+                </div>
+              </div>
               {error && <p className="text-xs text-red-600">{error}</p>}
               <button
                 type="submit"
