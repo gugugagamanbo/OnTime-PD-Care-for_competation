@@ -842,10 +842,8 @@ const ProfileTab = () => {
 
   // Share prefs — connected to SettingsContext
   const shareItems: { key: keyof typeof settings; label: string }[] = [
-    { key: 'confirmBeforeReport', label: '生成近期报告前需要共同账号确认' },
     { key: 'watchDataInAI', label: 'Apple Watch 数据参与 AI 分析' },
     { key: 'previewBeforeExport', label: '导出给医生前显示预览' },
-    { key: 'showMedPassportInEmergency', label: '紧急情况下显示用药护照' },
   ];
 
   return (

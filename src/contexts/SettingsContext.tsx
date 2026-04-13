@@ -18,10 +18,8 @@ export interface AppSettings {
   savePrescriptionImages: boolean;
 
   // Share prefs
-  confirmBeforeReport: boolean;
   watchDataInAI: boolean;
   previewBeforeExport: boolean;
-  showMedPassportInEmergency: boolean;
 }
 
 const defaultSettings: AppSettings = {
@@ -39,10 +37,8 @@ const defaultSettings: AppSettings = {
   allowExportToDoctor: false,
   savePrescriptionImages: false,
 
-  confirmBeforeReport: true,
   watchDataInAI: true,
   previewBeforeExport: true,
-  showMedPassportInEmergency: false,
 };
 
 interface SettingsContextType {
