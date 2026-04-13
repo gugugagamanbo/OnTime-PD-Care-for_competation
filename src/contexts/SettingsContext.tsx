@@ -3,23 +3,28 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 export interface AppSettings {
   // Reminder settings
   medReminderEnabled: boolean;
-  advanceMinutes: number; // 10, 15, 30
+  advanceMinutes: number;
   missedReRemind: boolean;
   familyNotify: boolean;
-  nightMode: boolean; // 22:00-07:00 silence
+  nightMode: boolean;
   vibration: boolean;
   largeFont: boolean;
   voiceReminder: boolean;
 
-  // Privacy settings
-  allowReportGen: boolean;
+  // 数据采集权限
+  allowAIAnalysis: boolean;
   allowWatchData: boolean;
-  allowExportToDoctor: boolean;
   savePrescriptionImages: boolean;
 
-  // Share prefs
-  watchDataInAI: boolean;
+  // 家属协作权限
+  familyViewMedLog: boolean;
+  familyMissedAlert: boolean;
+  familyEditMedPlan: boolean;
+
+  // 医生/外部分享权限
+  allowReportGen: boolean;
   previewBeforeExport: boolean;
+  allowExportToDoctor: boolean;
 }
 
 const defaultSettings: AppSettings = {
@@ -32,13 +37,17 @@ const defaultSettings: AppSettings = {
   largeFont: false,
   voiceReminder: false,
 
-  allowReportGen: true,
+  allowAIAnalysis: true,
   allowWatchData: true,
-  allowExportToDoctor: false,
   savePrescriptionImages: false,
 
-  watchDataInAI: true,
+  familyViewMedLog: true,
+  familyMissedAlert: true,
+  familyEditMedPlan: false,
+
+  allowReportGen: true,
   previewBeforeExport: true,
+  allowExportToDoctor: false,
 };
 
 interface SettingsContextType {

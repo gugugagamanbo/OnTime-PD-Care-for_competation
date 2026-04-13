@@ -4,6 +4,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { scanPrescription } from '@/services/aiService';
 import { useCareData } from '@/contexts/CareDataContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSettings } from '@/contexts/SettingsContext';
 
 interface DetectedMed {
   name: string;
@@ -29,6 +30,7 @@ const ScanTab = () => {
   const { t } = useLanguage();
   const { setMedications, medications, saveMedications } = useCareData();
   const { user } = useAuth();
+  const { settings } = useSettings();
   const [view, setView] = useState<'home' | 'camera' | 'scanning' | 'analyzing' | 'results' | 'manual' | 'text-input'>('home');
   const [detectedMeds, setDetectedMeds] = useState<DetectedMed[]>([]);
   const [manualMed, setManualMed] = useState<DetectedMed>(emptyManualMed);
@@ -43,6 +45,10 @@ const ScanTab = () => {
 
   // Real AI scan from text input
   const handleAiScan = async (content: string) => {
+    if (!settings.allowAIAnalysis) {
+      showToast('请先在隐私设置中开启「允许 AI 分析用药数据」');
+      return;
+    }
     if (!content.trim()) {
       showToast('请输入处方内容');
       return;
