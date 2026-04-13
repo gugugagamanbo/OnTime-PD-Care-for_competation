@@ -18,7 +18,7 @@ import {
 import { useLanguage } from '@/contexts/LanguageContext';
 import { type MedicationPlanItem, useCareData } from '@/contexts/CareDataContext';
 
-type SettingPage = 'reminders' | 'privacy' | 'visitInfo' | 'security' | 'about' | 'manageMeds' | 'recentReport' | null;
+type SettingPage = 'reminders' | 'privacy' | 'visitInfo' | 'security' | 'about' | 'manageMeds' | 'recentReport' | 'apiSettings' | null;
 
 interface ProfileInfo {
   displayName: string;
