@@ -1,16 +1,38 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import { useState } from 'react';
+import { LanguageProvider } from '@/contexts/LanguageContext';
+import { CareDataProvider } from '@/contexts/CareDataContext';
+import BottomNav from '@/components/BottomNav';
+import MedicationTab from '@/components/tabs/MedicationTab';
+import CareCircleTab from '@/components/tabs/CareCircleTab';
+import ScanTab from '@/components/tabs/ScanTab';
+import ProfileTab from '@/components/tabs/ProfileTab';
 
-// IMPORTANT: Fully REPLACE this with your own code
-const PlaceholderIndex = () => {
-  // PLACEHOLDER: Replace this entire return statement with the user's app.
-  // The inline background color is intentionally not part of the design system.
+const tabs = [MedicationTab, CareCircleTab, ScanTab, ProfileTab];
+
+const AppShell = () => {
+  const [activeTab, setActiveTab] = useState(0);
+  const ActiveComponent = tabs[activeTab];
+
   return (
-    <div className="flex min-h-screen items-center justify-center" style={{ backgroundColor: '#fcfbf8' }}>
-      <img data-lovable-blank-page-placeholder="REMOVE_THIS" src="/placeholder.svg" alt="Your app will live here!" />
+    <div className="min-h-screen bg-background flex justify-center">
+      <div className="w-full max-w-[390px] relative">
+        <div className="transition-opacity duration-200">
+          <ActiveComponent />
+        </div>
+        <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
+      </div>
     </div>
   );
 };
 
-const Index = PlaceholderIndex;
+const Index = () => {
+  return (
+    <LanguageProvider>
+      <CareDataProvider>
+        <AppShell />
+      </CareDataProvider>
+    </LanguageProvider>
+  );
+};
 
 export default Index;
