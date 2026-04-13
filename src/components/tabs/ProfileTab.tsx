@@ -855,6 +855,92 @@ const ProfileTab = () => {
     );
   }
 
+  return (
+    <div className="px-5 pt-6 pb-28 space-y-6">
+      {renderToast()}
+
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-bold text-gray-900">{t('tab.profile')}</h1>
+        <button onClick={() => setShowSettings(true)} className="p-1">
+          <Settings size={22} className="text-gray-700" />
+        </button>
+      </div>
+
+      <div className="flex flex-col items-center text-center bg-white border border-gray-200 rounded-2xl p-5">
+        <div className="w-[72px] h-[72px] rounded-2xl bg-gray-100 flex items-center justify-center">
+          <UserRound size={34} className="text-gray-700" />
+        </div>
+        <h2 className="text-xl font-bold text-gray-900 mt-3">{profileInfo.displayName}</h2>
+        <p className="text-xs text-gray-500 mt-1">共同账号 · 帕金森患者与家属一起维护</p>
+        <p className="text-xs text-gray-500 mt-0.5">主治医生：{profileInfo.primaryDoctor} · 诊断时间：{profileInfo.diagnosisTime}</p>
+        <button
+          onClick={() => setEditingProfile(true)}
+          className="mt-3 text-xs border border-gray-200 rounded-lg px-3 py-1.5 text-gray-700 hover:bg-gray-50"
+        >
+          {t('profile.editProfile')}
+        </button>
+      </div>
+
+      <button
+        onClick={() => {
+          setShowSettings(true);
+          setSettingPage('recentReport');
+        }}
+        className="w-full py-3 bg-gray-900 text-white rounded-xl text-sm font-semibold flex items-center justify-center gap-2"
+      >
+        <FileText size={16} />
+        {t('profile.exportReport')}
+      </button>
+
+      <SectionCard title="帕金森档案">
+        <div className="space-y-2.5">
+          {[
+            ['诊断时间', profileInfo.diagnosisTime],
+            ['主要症状', profileInfo.mainSymptoms],
+            ['是否有吞咽困难', profileInfo.swallowingDiff],
+            ['是否有跌倒史', profileInfo.fallHistory],
+            ['是否佩戴手表', profileInfo.wearWatch],
+            ['紧急联系人', profileInfo.emergencyContact],
+          ].map(([label, value]) => (
+            <div key={label} className="flex justify-between gap-4 text-sm">
+              <span className="text-gray-500 flex-shrink-0">{label}</span>
+              <span className="text-gray-900 text-right">{value}</span>
+            </div>
+          ))}
+        </div>
+      </SectionCard>
+
+      <SectionCard title="当前药物清单">
+        <div className="space-y-2">
+          {medications.map(med => (
+            <div key={med.id} className="flex items-center gap-2 text-sm text-gray-800">
+              <span className="w-1.5 h-1.5 rounded-full bg-gray-400 flex-shrink-0" />
+              {med.label}
+            </div>
+          ))}
+        </div>
+        <div className="flex gap-2 mt-3 pt-3 border-t border-gray-100">
+          <button
+            onClick={() => {
+              setShowSettings(true);
+              setSettingPage('manageMeds');
+            }}
+            className="flex-1 py-2 border border-gray-300 rounded-xl text-xs font-medium text-gray-700"
+          >
+            管理药物
+          </button>
+          <button
+            onClick={() => {
+              setShowSettings(true);
+              setSettingPage('visitInfo');
+            }}
+            className="flex-1 py-2 border border-gray-300 rounded-xl text-xs font-medium text-gray-700"
+          >
+            生成就诊信息
+          </button>
+        </div>
+      </SectionCard>
+
       <SectionCard title="共享权限">
         <p className="text-xs text-gray-500 mb-2">在「设置 → 隐私与授权」中管理全部共享权限。</p>
         <button
