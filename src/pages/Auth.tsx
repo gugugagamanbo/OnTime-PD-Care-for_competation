@@ -1,15 +1,32 @@
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { Pill } from 'lucide-react';
+import { ChevronDown, Pill } from 'lucide-react';
+
+const countryCodes = [
+  { code: '+86', flag: '🇨🇳', label: '中国大陆', maxLen: 11 },
+  { code: '+852', flag: '🇭🇰', label: '香港', maxLen: 8 },
+  { code: '+853', flag: '🇲🇴', label: '澳门', maxLen: 8 },
+  { code: '+886', flag: '🇹🇼', label: '台湾', maxLen: 10 },
+  { code: '+1', flag: '🇺🇸', label: '美国/加拿大', maxLen: 10 },
+  { code: '+44', flag: '🇬🇧', label: '英国', maxLen: 10 },
+  { code: '+81', flag: '🇯🇵', label: '日本', maxLen: 11 },
+  { code: '+82', flag: '🇰🇷', label: '韩国', maxLen: 11 },
+  { code: '+65', flag: '🇸🇬', label: '新加坡', maxLen: 8 },
+  { code: '+61', flag: '🇦🇺', label: '澳大利亚', maxLen: 9 },
+];
 
 const Auth = () => {
   const { signInWithPhone, verifyOtp } = useAuth();
   const [phone, setPhone] = useState('');
+  const [selectedCountry, setSelectedCountry] = useState(countryCodes[0]);
+  const [showCountryPicker, setShowCountryPicker] = useState(false);
   const [otp, setOtp] = useState('');
   const [step, setStep] = useState<'phone' | 'otp'>('phone');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [countdown, setCountdown] = useState(0);
+
+  const fullPhone = `${selectedCountry.code}${phone.replace(/\D/g, '')}`;
 
   const startCountdown = () => {
     setCountdown(60);
@@ -25,14 +42,14 @@ const Auth = () => {
     e.preventDefault();
     setError('');
 
-    const cleaned = phone.replace(/[^\d+]/g, '');
-    if (!/^\+?\d{10,15}$/.test(cleaned)) {
-      setError('请输入有效的手机号（含国际区号，如 +8613800138000）');
+    const digits = phone.replace(/\D/g, '');
+    if (digits.length < 6 || digits.length > selectedCountry.maxLen) {
+      setError(`请输入${selectedCountry.maxLen}位手机号`);
       return;
     }
 
     setLoading(true);
-    const { error } = await signInWithPhone(cleaned);
+    const { error } = await signInWithPhone(fullPhone);
     setLoading(false);
 
     if (error) {
@@ -52,9 +69,8 @@ const Auth = () => {
       return;
     }
 
-    const cleaned = phone.replace(/[^\d+]/g, '');
     setLoading(true);
-    const { error } = await verifyOtp(cleaned, otp);
+    const { error } = await verifyOtp(fullPhone, otp);
     setLoading(false);
 
     if (error) setError(error.message);
@@ -63,9 +79,8 @@ const Auth = () => {
   const handleResend = async () => {
     if (countdown > 0) return;
     setError('');
-    const cleaned = phone.replace(/[^\d+]/g, '');
     setLoading(true);
-    const { error } = await signInWithPhone(cleaned);
+    const { error } = await signInWithPhone(fullPhone);
     setLoading(false);
     if (error) setError(error.message);
     else startCountdown();
