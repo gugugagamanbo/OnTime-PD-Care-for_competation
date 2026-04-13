@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import type { ReactNode } from 'react';
+import ApiSettings from '@/components/settings/ApiSettings';
 import {
   Bell,
   ChevronLeft,
   ChevronRight,
+  Cpu,
   FileText,
   Lock,
   LogOut,
@@ -18,7 +20,7 @@ import {
 import { useLanguage } from '@/contexts/LanguageContext';
 import { type MedicationPlanItem, useCareData } from '@/contexts/CareDataContext';
 
-type SettingPage = 'reminders' | 'privacy' | 'visitInfo' | 'security' | 'about' | 'manageMeds' | 'recentReport' | null;
+type SettingPage = 'reminders' | 'privacy' | 'visitInfo' | 'security' | 'about' | 'manageMeds' | 'recentReport' | 'apiSettings' | null;
 
 interface ProfileInfo {
   displayName: string;
@@ -727,6 +729,8 @@ AI 可能遗漏信息、误读上下文、生成不完整或不准确的判断�
   if (showSettings && settingPage === 'about') return renderAbout();
   if (showSettings && settingPage === 'manageMeds') return renderManageMeds();
   if (showSettings && settingPage === 'recentReport') return renderRecentReport();
+  if (showSettings && settingPage === 'apiSettings') return <ApiSettings onBack={() => setSettingPage(null)} />;
+  if (showSettings && settingPage === 'recentReport') return renderRecentReport();
   if (editingProfile) return renderEditProfile();
 
   if (showSettings) {
@@ -734,6 +738,7 @@ AI 可能遗漏信息、误读上下文、生成不完整或不准确的判断�
       { icon: Bell, label: '提醒设置', page: 'reminders' as const },
       { icon: Lock, label: '隐私与授权', page: 'privacy' as const },
       { icon: FileText, label: '生成就诊信息', page: 'visitInfo' as const },
+      { icon: Cpu, label: 'AI 服务配置', page: 'apiSettings' as const },
       { icon: Shield, label: '账号安全', page: 'security' as const },
       { icon: UserRound, label: '关于与免责声明', page: 'about' as const },
     ];
