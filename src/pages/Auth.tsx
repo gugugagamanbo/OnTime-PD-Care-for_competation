@@ -158,7 +158,7 @@ const Auth = () => {
             <form onSubmit={handleVerify} className="space-y-4">
               <div>
                 <h2 className="text-base font-bold text-gray-900 mb-1">输入验证码</h2>
-                <p className="text-xs text-gray-500">验证码已发送至 {phone}</p>
+                <p className="text-xs text-gray-500">验证码已发送至 {selectedCountry.code} {phone}</p>
               </div>
               <label className="block">
                 <span className="text-xs font-medium text-gray-500">6位验证码</span>
